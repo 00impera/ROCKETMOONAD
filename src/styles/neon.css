@@ -1,0 +1,30 @@
+/* Reusable neon glow classes */
+
+.glow-green  { box-shadow: 0 0 12px #00FF8866; }
+.glow-purple { box-shadow: 0 0 12px #CC00FF66; }
+.glow-blue   { box-shadow: 0 0 12px #00C8FF66; }
+.glow-orange { box-shadow: 0 0 12px #FF8C0066; }
+
+.text-glow-green  { text-shadow: 0 0 10px #00FF88; }
+.text-glow-purple { text-shadow: 0 0 10px #CC00FF; }
+
+/* Pulsing glow animation */
+@keyframes pulse-green {
+  0%, 100% { box-shadow: 0 0 6px  #00FF8844; }
+  50%       { box-shadow: 0 0 20px #00FF8899; }
+}
+
+@keyframes pulse-purple {
+  0%, 100% { box-shadow: 0 0 8px  #CC00FF22; }
+  50%       { box-shadow: 0 0 24px #CC00FF66; }
+}
+
+.pulse-green  { animation: pulse-green  2s ease-in-out infinite; }
+.pulse-purple { animation: pulse-purple 2.2s ease-in-out infinite; }
+
+/* Neon border gradient sweep */
+@keyframes border-sweep {
+  0%   { background-position: 0%   50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0%   50%; }
+}

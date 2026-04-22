@@ -1,0 +1,36 @@
+:root {
+  /* Base palette */
+  --bg-deep:    #080810;
+  --bg-panel:   #0f0f0f;
+  --bg-card:    #050509;
+  --bg-input:   #080810;
+
+  /* Accent colours */
+  --green:      #00FF88;
+  --green-dim:  #00FF8822;
+  --green-mid:  #00FF8844;
+  --blue:       #00C8FF;
+  --purple:     #CC00FF;
+  --purple-dim: #CC00FF33;
+  --orange:     #FF8C00;
+  --red:        #FF4444;
+
+  /* Text */
+  --text-primary:   #eeeeee;
+  --text-secondary: #aaaaaa;
+  --text-muted:     #555555;
+  --text-faint:     #333333;
+
+  /* Borders */
+  --border-subtle:  #1c1c1c;
+  --border-faint:   #222222;
+
+  /* Radii */
+  --r-sm:  6px;
+  --r-md:  10px;
+  --r-lg:  14px;
+
+  /* Fonts */
+  --font-ui:   "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Cascadia Code", "Fira Code", monospace;
+}
