@@ -5,7 +5,7 @@ export const CLIENT_ID = "821819db832d1a313ae3b1a62fbeafb7";
 export const client = createThirdwebClient({ clientId: CLIENT_ID });
 
 export const monad = defineChain({
-  id: 10143,
+  id: 143,
   name: "Monad Mainnet",
   rpc: "https://monad-mainnet.g.alchemy.com/v2/Uwb7T0DbXMQHjiJBNf9_b005qYjLmJqk",
   nativeCurrency: { name: "MON", symbol: "MON", decimals: 18 },
