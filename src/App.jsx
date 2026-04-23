@@ -17,18 +17,20 @@ import NeonButton      from "./components/NeonButton";
 import DailyClaimPanel from "./components/DailyClaimPanel";
 import RafflePanel     from "./components/RafflePanel";
 
-// ─── CONFIG ──────────────────────────────────────────────────────────────────
-const RMAD_PAIR    = "0x754704bc059f8c67012fed69bc8a327a5aafb603"; // RMAD/WMON pair
-const NFT_ADDR     = "0x45336C2E15F2fe58c67Ee4035a520231b2751669"; // NFT contract (ERC-721)
-const STAKING_ADDR = "0xec5773F31CA0F4012624392243E0B6517B518976"; // Staking (MODEL D)
+// ─── CONTRACTS ────────────────────────────────────────────────────────────────
+const NFT_ADDR     = "0x45336C2E15F2fe58c67Ee4035a520231b2751669"; // NFT (ERC-721)
+const STAKING_ADDR = "0xec5773F31CA0F4012624392243E0B6517B518976"; // Staking
 const RMAD_ADDR    = "0x9a440Afaa434cDd19234e58798DeFA0E71be0A67"; // RMAD Token (ERC-20)
 const ORACLE_ADDR  = "0xEf98C35c95206527Bf2783fEf8f69Cfc12a3c2e1"; // Oracle (PriceFeed)
-const RAFFLE_ADDR  = "0xbcc94553Cb4facD17f209FDda4a54012Be616Cfc"; // Raffle (VRF Fake)
-const WMON_ADDR    = "0x2cE8C8F4961a54B2e87585f4178467006B76B418";
-const DAPP_URL     = "https://6e82f368.rocketmoonad.pages.dev";
-const DEX_URL      = `https://dexscreener.com/monad/${RMAD_PAIR}`;
-const MONAD_RPCS   = ["https://rpc.monad.xyz", "https://monad.drpc.org"];
-const DS_API       = "https://api.dexscreener.com/latest/dex/pairs/monad";
+const RAFFLE_ADDR  = "0xbcc94553Cb4facD17f209FDda4a54012Be616Cfc"; // Raffle
+const RMAD_PAIR    = "0x754704bc059f8c67012fed69bc8a327a5aafb603"; // RMAD/WMON LP Pair
+const WMON_ADDR    = "0x2cE8C8F4961a54B2e87585f4178467006B76B418"; // Wrapped MON
+
+const DAPP_URL   = "https://6e82f368.rocketmoonad.pages.dev";
+const DEX_URL    = `https://dexscreener.com/monad/${RMAD_PAIR}`;
+const MONAD_URL  = `https://monadvision.com/token/${RMAD_ADDR}?tab=Holders`;
+const DS_API     = "https://api.dexscreener.com/latest/dex/pairs/monad";
+const MONAD_RPCS = ["https://rpc.monad.xyz", "https://monad.drpc.org"];
 
 // ─── EUROSPACE DEX PAIRS ─────────────────────────────────────────────────────
 const DEX_PAIRS = [
@@ -39,7 +41,7 @@ const DEX_PAIRS = [
   { symbol:"mBNB",   name:"Meta BNB",       color:"#F3BA2F", img:"", pair:"0xd77B55A199EA0DC81EB4c7c36d45fBda4D6477B6" },
   { symbol:"mXRP",   name:"Meta XRP",       color:"#00AAE4", img:"", pair:"0x69884c6C8Fe6F833aEEDE2A4c0949e667C7F79fB" },
   { symbol:"mUSDC",  name:"Meta USDC",      color:"#2775CA", img:"", pair:"0x3BE5B19348d6Ccbc20e0DCF3Cab0aDF9e4643dCa" },
-  { symbol:"mUSDT",  name:"Meta Tether",    color:"#26A17B", img:"", pair:"0xAB4CFB051E73db47f75c4A2c31dFaAFd3A82A8b8" },
+  { symbol:"mUSDT",  name:"Meta Tether",    color:"#26A17B", img:"", pair:"0xAB4CFB051E73db47f75c4A2c31dFaAAFd3A82A8b8" },
   { symbol:"mMATIC", name:"Meta Polygon",   color:"#8247E5", img:"", pair:"0x5F5908aD27AFf28b0BDbAD8F93470e83310aE365" },
   { symbol:"mDOGE",  name:"Meta Dogecoin",  color:"#C2A633", img:"", pair:"0x8e71b96897c6D5EF3954b06636c24EdB4866b488" },
   { symbol:"mLTC",   name:"Meta Litecoin",  color:"#a8a8a8", img:"", pair:"0xd4faf6a3B43105395C1f3db6525eA0fBF5B3aF9a" },
@@ -98,7 +100,7 @@ function calcRmadPrice(r0, r1, token0Addr) {
   return Number((r0 * 1_000_000_000_000n) / r1) / 1_000_000_000_000;
 }
 
-// ─── DEXSCREENER API — batch fetch all pairs ──────────────────────────────────
+// ─── DEXSCREENER API ──────────────────────────────────────────────────────────
 async function fetchDexScreenerPairs(pairAddresses) {
   try {
     const CHUNK = 30;
@@ -135,16 +137,14 @@ async function fetchDexScreenerPairs(pairAddresses) {
   }
 }
 
-// ─── AD BANNER ───────────────────────────────────────────────────────────────
-const MONAD_URL = `https://monadvision.com/token/${RMAD_ADDR}?tab=Holders`;
-
+// ─── AD BANNER ────────────────────────────────────────────────────────────────
 const RMAD_AD_LINKS = [
-  { label:"Telegram",    sub:"@Rocket_Moonad_bot", url:"https://t.me/Rocket_Moonad_bot",  color:"#00c8ff" },
+  { label:"Telegram",    sub:"@Rocket_Moonad_bot", url:"https://t.me/Rocket_Moonad_bot",               color:"#00c8ff" },
   { label:"Discord",     sub:"Join Server",         url:"https://discord.com/channels/1316093079090106472", color:"#5865f2" },
-  { label:"Twitter / X", sub:"@bnbgold277983",      url:"https://twitter.com/bnbgold277983", color:"#e0e0ff" },
-  { label:"MonadVision", sub:"RMAD Holders",        url:MONAD_URL,                         color:"#836ef9" },
-  { label:"DexScreener", sub:"RMAD/WMON Pair",      url:DEX_URL,                           color:"#00FF88" },
-  { label:"Moon Rockets",sub:"Season 1 · Monad",    url:DAPP_URL,                          color:"#a78bfa" },
+  { label:"Twitter / X", sub:"@bnbgold277983",      url:"https://twitter.com/bnbgold277983",            color:"#e0e0ff" },
+  { label:"MonadVision", sub:"RMAD Holders",        url:MONAD_URL,                                      color:"#836ef9" },
+  { label:"DexScreener", sub:"RMAD/WMON Pair",      url:DEX_URL,                                        color:"#00FF88" },
+  { label:"Moon Rockets",sub:"Season 1 · Monad",    url:DAPP_URL,                                       color:"#a78bfa" },
 ];
 
 function AdBanner() {
@@ -210,7 +210,7 @@ function useLiveDexPrice() {
   return { dexPrice, dexChange, dexLoading };
 }
 
-// ─── DEX PAIRS PRICES HOOK (DexScreener API) ─────────────────────────────────
+// ─── DEX PAIRS PRICES HOOK ────────────────────────────────────────────────────
 function useDexPrices() {
   const [prices,  setPrices]  = useState({});
   const [loading, setLoading] = useState(true);
@@ -225,7 +225,7 @@ function useDexPrices() {
   return { prices, loading };
 }
 
-// ─── PRICE FORMATTER ─────────────────────────────────────────────────────────
+// ─── FORMATTERS ───────────────────────────────────────────────────────────────
 function fmtNative(n) {
   if (!n || n === 0) return "—";
   if (n < 0.000001)  return n.toExponential(4);
@@ -233,7 +233,6 @@ function fmtNative(n) {
   if (n < 1)         return n.toFixed(6);
   return n.toFixed(4);
 }
-
 function fmtUsd(u) {
   if (!u || u === 0) return null;
   if (u < 0.000001)  return "$" + u.toExponential(2);
@@ -241,7 +240,6 @@ function fmtUsd(u) {
   if (u < 1)         return "$" + u.toFixed(4);
   return "$" + u.toFixed(2);
 }
-
 function fmtVolLiq(v) {
   if (!v || v === 0) return null;
   if (v >= 1_000_000) return "$" + (v / 1_000_000).toFixed(1) + "M";
@@ -258,10 +256,10 @@ function Dashboard() {
   const { prices: dexPrices, loading: dexPairsLoading } = useDexPrices();
   const { stakedIds, pending, stake, unstake, claimRewards } = useStaking(account, sendTx);
 
-  const [filter,       setFilter]      = useState("all");
-  const [tab,          setTab]         = useState("staking");
-  const [dexFilter,    setDexFilter]   = useState("all");
-  const [selectedPair, setSelectedPair]= useState(null);
+  const [filter,        setFilter]       = useState("all");
+  const [tab,           setTab]          = useState("staking");
+  const [dexFilter,     setDexFilter]    = useState("all");
+  const [selectedPair,  setSelectedPair] = useState(null);
 
   const nftsWithState = NFTS.map(n => ({ ...n, staked: stakedIds.includes(n.id.toString()) }));
   const filtered =
@@ -315,11 +313,11 @@ function Dashboard() {
         {/* CONTRACT PILLS */}
         <div style={{ display:"flex", gap:"8px", flexWrap:"wrap", marginBottom:"12px" }}>
           {[
-            { label:"NFT (ERC-721)",    addr: NFT_ADDR     },
-            { label:"Staking",          addr: STAKING_ADDR },
-            { label:"RMAD (ERC-20)",    addr: RMAD_ADDR    },
-            { label:"Oracle",           addr: ORACLE_ADDR  },
-            { label:"Raffle",           addr: RAFFLE_ADDR  },
+            { label:"NFT (ERC-721)", addr: NFT_ADDR     },
+            { label:"Staking",       addr: STAKING_ADDR },
+            { label:"RMAD (ERC-20)", addr: RMAD_ADDR    },
+            { label:"Oracle",        addr: ORACLE_ADDR  },
+            { label:"Raffle",        addr: RAFFLE_ADDR  },
           ].map(({ label, addr }) => (
             <div key={addr} style={{ background:"var(--bg-panel)", border:"0.5px solid var(--border-subtle)", borderRadius:"8px", padding:"6px 10px" }}>
               <div style={{ fontSize:"9px", color:"#444", textTransform:"uppercase", letterSpacing:"1px", marginBottom:"2px" }}>{label}</div>
@@ -328,7 +326,7 @@ function Dashboard() {
           ))}
         </div>
 
-        {/* PRICE BAR */}
+        {/* PRICE BAR — RMAD only (no DEX_PAIRS here) */}
         <div style={{ display:"flex", flexWrap:"wrap", gap:"8px", marginBottom:"14px" }}>
           <div style={{ flex:1, minWidth:180, display:"flex", alignItems:"center", gap:"10px", background:"var(--bg-panel)", border:"0.5px solid var(--green-dim)", borderRadius:"10px", padding:"10px 14px" }}>
             <div style={{ flex:1 }}>
@@ -454,7 +452,6 @@ function Dashboard() {
         {/* ══ DEX LIVE TAB ══ */}
         {tab === "dex" && (
           <div>
-            {/* Header row */}
             <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"12px", flexWrap:"wrap" }}>
               <span style={{ fontSize:"13px", fontWeight:"600", color:"var(--text-primary)" }}>
                 📊 DEX Live · {DEX_PAIRS.length} Pairs · EUROSPACE on Monad
@@ -465,7 +462,6 @@ function Dashboard() {
               }
             </div>
 
-            {/* Filters */}
             <div style={{ display:"flex", gap:"6px", marginBottom:"14px", flexWrap:"wrap" }}>
               {["all","meta","stable","euro"].map(f => (
                 <button key={f} className={`flt-btn ${dexFilter === f ? "active" : ""}`} onClick={() => setDexFilter(f)}>
@@ -474,7 +470,6 @@ function Dashboard() {
               ))}
             </div>
 
-            {/* Pair cards */}
             <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))", gap:"8px" }}>
               {filteredDex.map(p => {
                 const key      = p.pair.toLowerCase();
@@ -493,71 +488,40 @@ function Dashboard() {
                     style={{ borderLeftColor:p.color }}
                     onClick={() => setSelectedPair(selectedPair === p.pair ? null : p.pair)}
                   >
-                    {/* Live dot */}
                     <div className={`dex-dot ${hasPrice ? "" : "offline"}`} />
-
-                    {/* Token circle */}
                     <div style={{ width:36, height:36, borderRadius:"50%", background:p.color+"22", border:`2px solid ${p.color}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:10, fontWeight:700, color:p.color, fontFamily:"monospace" }}>
                       {p.symbol.slice(0,3)}
                     </div>
-
-                    {/* Middle info */}
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ fontSize:"12px", fontWeight:"700", color:p.color, letterSpacing:"0.5px" }}>{p.symbol}</div>
                       <div style={{ fontSize:"10px", color:"#444", marginTop:"1px" }}>{p.name}</div>
-
-                      {/* Changes */}
                       {(ch24 !== null || ch1h !== null) && (
                         <div style={{ display:"flex", gap:"6px", marginTop:"3px", flexWrap:"wrap" }}>
-                          {ch24 !== null && (
-                            <span className={Number(ch24) >= 0 ? "chg-up" : "chg-down"}>
-                              {Number(ch24) >= 0 ? "▲" : "▼"}{Math.abs(Number(ch24)).toFixed(2)}% 24h
-                            </span>
-                          )}
-                          {ch1h !== null && (
-                            <span className={Number(ch1h) >= 0 ? "chg-up" : "chg-down"}>
-                              {Number(ch1h) >= 0 ? "▲" : "▼"}{Math.abs(Number(ch1h)).toFixed(2)}% 1h
-                            </span>
-                          )}
+                          {ch24 !== null && <span className={Number(ch24) >= 0 ? "chg-up" : "chg-down"}>{Number(ch24) >= 0 ? "▲" : "▼"}{Math.abs(Number(ch24)).toFixed(2)}% 24h</span>}
+                          {ch1h !== null && <span className={Number(ch1h) >= 0 ? "chg-up" : "chg-down"}>{Number(ch1h) >= 0 ? "▲" : "▼"}{Math.abs(Number(ch1h)).toFixed(2)}% 1h</span>}
                         </div>
                       )}
-
-                      {/* Liq / Vol */}
                       {(liqFmt || volFmt) && (
                         <div style={{ display:"flex", gap:"8px", marginTop:"3px" }}>
                           {liqFmt && <span style={{ fontSize:"9px", color:"#555" }}>💧{liqFmt}</span>}
                           {volFmt && <span style={{ fontSize:"9px", color:"#555" }}>📊{volFmt}</span>}
                         </div>
                       )}
-
-                      {/* DexScreener link */}
                       <div style={{ marginTop:"5px" }}>
-                        <a
-                          href={`https://dexscreener.com/monad/${p.pair}`}
-                          target="_blank"
-                          rel="noreferrer"
+                        <a href={`https://dexscreener.com/monad/${p.pair}`} target="_blank" rel="noreferrer"
                           style={{ fontSize:"9px", padding:"2px 8px", border:"0.5px solid #00FF8844", borderRadius:"4px", color:"#00FF88", textDecoration:"none" }}
-                          onClick={e => e.stopPropagation()}
-                        >📊 Chart</a>
+                          onClick={e => e.stopPropagation()}>📊 Chart</a>
                       </div>
                     </div>
-
-                    {/* Price column */}
                     <div style={{ textAlign:"right", minWidth:"82px", flexShrink:0 }}>
                       {hasPrice ? (
                         <>
-                          <div style={{ fontSize:"11px", fontWeight:"700", color:"#00e5ff", fontFamily:"var(--font-mono)" }}>
-                            {fmtNative(pd.priceNative)}
-                          </div>
+                          <div style={{ fontSize:"11px", fontWeight:"700", color:"#00e5ff", fontFamily:"var(--font-mono)" }}>{fmtNative(pd.priceNative)}</div>
                           <div style={{ fontSize:"9px", color:"#555", marginTop:"1px" }}>WMON</div>
-                          {usdFmt && (
-                            <div style={{ fontSize:"9px", color:"#666", marginTop:"2px", fontFamily:"var(--font-mono)" }}>{usdFmt}</div>
-                          )}
+                          {usdFmt && <div style={{ fontSize:"9px", color:"#666", marginTop:"2px", fontFamily:"var(--font-mono)" }}>{usdFmt}</div>}
                         </>
                       ) : (
-                        <div style={{ fontSize:"11px", color:"#333", fontFamily:"var(--font-mono)" }}>
-                          {dexPairsLoading ? "…" : "—"}
-                        </div>
+                        <div style={{ fontSize:"11px", color:"#333", fontFamily:"var(--font-mono)" }}>{dexPairsLoading ? "…" : "—"}</div>
                       )}
                     </div>
                   </div>
@@ -565,7 +529,6 @@ function Dashboard() {
               })}
             </div>
 
-            {/* Embedded chart */}
             {selectedPair && (
               <div style={{ marginTop:"16px", borderRadius:"12px", overflow:"hidden", border:"0.5px solid #1a1a1a" }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 12px", background:"#050510", borderBottom:"0.5px solid #111" }}>
