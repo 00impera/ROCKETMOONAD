@@ -1,20 +1,15 @@
-
-
 const TelegramBot = require("node-telegram-bot-api");
 const http = require("http");
- 
+
 const TOKEN = process.env.BOT_TOKEN;
 const bot   = new TelegramBot(TOKEN, { polling: true });
- 
-// ── Keep-alive HTTP server for Render free tier ───────────
+
 http.createServer((req, res) => res.end("🚀 RocketMoonad Bot is running!"))
     .listen(process.env.PORT || 3000);
- 
-// ── Crash protection ──────────────────────────────────────
+
 process.on("unhandledRejection", (err) => console.error("Unhandled rejection:", err.message));
 process.on("uncaughtException",  (err) => console.error("Uncaught exception:",  err.message));
- 
-// ── Constants ─────────────────────────────────────────────
+
 const DAPP_URL     = "https://6e82f368.rocketmoonad.pages.dev";
 const DEX_URL      = "https://dexscreener.com/monad/0xb5cb9f4eccbeae6f95c9222aa12c319ff362a5a3";
 const MONAD_URL    = "https://monadvision.com/token/0x9a440Afaa434cDd19234e58798DeFA0E71be0A67?tab=Holders";
@@ -23,10 +18,9 @@ const STAKING_ADDR = "0xec5773F31CA0F4012624392243E0B6517B518976";
 const RMAD_ADDR    = "0x9a440Afaa434cDd19234e58798DeFA0E71be0A67";
 const WMON_ADDR    = "0x2cE8C8F4961a54B2e87585f4178467006B76B418";
 const RMAD_PAIR    = "0xb5cb9f4eccbeae6f95c9222aa12c319ff362a5a3";
-const MONAD_RPCS   = ["https://rpc.monad.xyz", "https://monad.drpc.org"];
+const MONAD_RPCS   = ["https://rpc.monad.xyz", "https://rpc.ankr.com/monad_mainnet"];
 const DS_API       = "https://api.dexscreener.com/latest/dex/pairs/monad";
- 
-// ── EUROSPACE DEX pairs (from App.js) ─────────────────────
+
 const DEX_PAIRS = [
   { symbol:"EURO",   name:"Meta EuroCoin",  pair:"0x9E32FdD909a5BdcCfb874DEE72F24169AfE4eC02" },
   { symbol:"mBTC",   name:"Meta Bitcoin",   pair:"0x47Dc73D3e1C520056AdF52349A6A282e5262D56d" },
@@ -46,7 +40,7 @@ const DEX_PAIRS = [
   { symbol:"mEURC",  name:"Meta EURC",      pair:"0x669d78953a14a147DA6730dA255b4E7A7b15b111" },
   { symbol:"mCRO",   name:"Meta Cronos",    pair:"0x7D9e8050Ba0c0a6c8336A49a5Af6748AA6BD855C" },
 ];
- 
+
 // ── On-chain RPC helper ───────────────────────────────────
 async function rpcFetch(method, params) {
   for (const rpc of MONAD_RPCS) {
@@ -66,16 +60,16 @@ async function rpcFetch(method, params) {
   }
   return null;
 }
- 
+
 // ── RMAD on-chain price ───────────────────────────────────
 let rmadToken0Cache = null;
- 
+
 async function fetchToken0(pairAddr) {
   const res = await rpcFetch("eth_call", [{ to: pairAddr, data: "0x0dfe1681" }, "latest"]);
   if (!res || res === "0x" || res.length < 66) return null;
   return ("0x" + res.slice(26)).toLowerCase();
 }
- 
+
 async function fetchOnChainPrice() {
   try {
     if (!rmadToken0Cache) rmadToken0Cache = await fetchToken0(RMAD_PAIR);
@@ -95,8 +89,33 @@ async function fetchOnChainPrice() {
     return null;
   }
 }
- 
-// ── DexScreener batch fetch (from App.js) ─────────────────
+
+// ── On-chain price for any EUROSPACE pair ─────────────────
+// token0() = 0x0dfe1681, getReserves() = 0x0902f1ac
+async function fetchPairOnChainPrice(pairAddr) {
+  try {
+    const t0res = await rpcFetch("eth_call", [{ to: pairAddr, data: "0x0dfe1681" }, "latest"]);
+    const token0 = t0res && t0res.length >= 66 ? ("0x" + t0res.slice(26)).toLowerCase() : null;
+
+    const res = await rpcFetch("eth_call", [{ to: pairAddr, data: "0x0902f1ac" }, "latest"]);
+    if (!res || res === "0x" || res.length < 130) return null;
+    const r0 = BigInt("0x" + res.slice(2, 66));
+    const r1 = BigInt("0x" + res.slice(66, 130));
+    if (r0 === 0n || r1 === 0n) return null;
+
+    // token0 is the base token (not WMON), token1 is WMON
+    // price in WMON = r1/r0 if base is token0, else r0/r1
+    const wmonLower = WMON_ADDR.toLowerCase();
+    const wmonIsToken0 = token0 === wmonLower;
+    // price of base token in WMON
+    const price = wmonIsToken0
+      ? Number((r0 * 1_000_000_000_000n) / r1) / 1_000_000_000_000
+      : Number((r1 * 1_000_000_000_000n) / r0) / 1_000_000_000_000;
+    return price;
+  } catch (_) { return null; }
+}
+
+// ── DexScreener batch fetch (fallback) ───────────────────
 async function fetchDexScreenerPairs(pairAddresses) {
   try {
     const CHUNK = 30;
@@ -130,8 +149,8 @@ async function fetchDexScreenerPairs(pairAddresses) {
     return {};
   }
 }
- 
-// ── Price formatters (from App.js) ────────────────────────
+
+// ── Price formatters ──────────────────────────────────────
 function fmtNative(n) {
   if (!n || n === 0) return "—";
   if (n < 0.000001) return n.toExponential(4);
@@ -139,7 +158,6 @@ function fmtNative(n) {
   if (n < 1)        return n.toFixed(6);
   return n.toFixed(4);
 }
- 
 function fmtUsd(u) {
   if (!u || u === 0) return null;
   if (u < 0.000001) return "$" + u.toExponential(2);
@@ -147,20 +165,18 @@ function fmtUsd(u) {
   if (u < 1)        return "$" + u.toFixed(4);
   return "$" + u.toFixed(2);
 }
- 
 function fmtVolLiq(v) {
   if (!v || v === 0) return null;
   if (v >= 1_000_000) return "$" + (v / 1_000_000).toFixed(1) + "M";
   if (v >= 1_000)     return "$" + (v / 1_000).toFixed(1) + "k";
   return "$" + v.toFixed(0);
 }
- 
 function chgArrow(v) {
   if (v === null || v === undefined) return "";
   const n = Number(v);
   return (n >= 0 ? "▲" : "▼") + Math.abs(n).toFixed(2) + "%";
 }
- 
+
 // ── NFT data ──────────────────────────────────────────────
 const NFTS = [
   { id:1,  name:"Dark Flame Knight I",   rarity:"Legendary", power:95, speed:88, boost:92,
@@ -186,33 +202,33 @@ const NFTS = [
   { id:11, name:"Boys Club Rocket Ride", rarity:"Legendary", power:91, speed:94, boost:93,
     image:"https://res.cloudinary.com/drmsykh02/image/upload/v1776867774/rocketmoonad/nfts/boys_club_rocket_ride.gif" },
 ];
- 
+
 const RARITY_EMOJI = { Legendary:"🔥", Mythic:"🐉", Epic:"💜", Rare:"💙", Uncommon:"💚", Common:"⚪" };
 const RARITY_STARS = { Legendary:"⭐⭐⭐⭐⭐", Mythic:"🌟🌟🌟🌟🌟", Epic:"⭐⭐⭐⭐", Rare:"⭐⭐⭐", Uncommon:"⭐⭐", Common:"⭐" };
- 
+
 function bar(value) {
   const filled = Math.round(value / 10);
   return "█".repeat(filled) + "░".repeat(10 - filled) + ` ${value}`;
 }
- 
+
 function nftCaption(nft) {
   return `🚀 *Moon Rockets Season 1*
 ━━━━━━━━━━━━━━━━━━━━
 ${RARITY_EMOJI[nft.rarity] || "⚪"} *${nft.name}*
 🏷️ Rarity: \`${nft.rarity}\` ${RARITY_STARS[nft.rarity] || "⭐"}
 🆔 Token ID: \`#${nft.id}\`
- 
+
 📊 *STATS*
 ⚔️ PWR: \`${bar(nft.power)}\`
 💨 SPD: \`${bar(nft.speed)}\`
 🚀 BST: \`${bar(nft.boost)}\`
- 
+
 💎 *RMAD Token:* \`${RMAD_ADDR}\`
 📦 *NFT Contract:* \`${NFT_ADDR}\`
 ━━━━━━━━━━━━━━━━━━━━
 🌐 [Open dApp](${DAPP_URL}) | 📈 [Trade RMAD](${DEX_URL})`;
 }
- 
+
 function nftKeyboard(nft) {
   return {
     inline_keyboard: [
@@ -227,28 +243,27 @@ function nftKeyboard(nft) {
     ],
   };
 }
- 
-// ── Menu ──────────────────────────────────────────────────
+
 const MAIN_MENU_TEXT = `
 🚀 *RocketMoonad* — Moon Rockets Season 1
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- 
+
 🌕 Stake your Moon Rockets NFTs
 💎 Earn \`RMAD\` rewards on Monad Mainnet
 🎮 11 unique NFT characters with stats
- 
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📦 NFT Contract:
 \`${NFT_ADDR}\`
- 
+
 💎 RMAD Token:
 \`${RMAD_ADDR}\`
- 
+
 🔒 Staking Contract:
 \`${STAKING_ADDR}\`
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 `;
- 
+
 const MAIN_MENU_KEYBOARD = {
   inline_keyboard: [
     [{ text:"🌐 Open dApp", url:DAPP_URL }, { text:"📈 Trade RMAD", url:DEX_URL }],
@@ -257,8 +272,7 @@ const MAIN_MENU_KEYBOARD = {
     [{ text:"📋 All NFT Cards", callback_data:"all_nfts" }, { text:"📊 DEX Live", callback_data:"dex_all" }],
   ],
 };
- 
-// ── Send price message ────────────────────────────────────
+
 async function sendPriceMessage(chatId) {
   const loadingMsg = await bot.sendMessage(chatId, "⏳ Fetching live on-chain price...");
   const price = await fetchOnChainPrice();
@@ -280,7 +294,7 @@ async function sendPriceMessage(chatId) {
 ━━━━━━━━━━━━━━━━━━━━
 Could not fetch on\\-chain price\\.
 RPC may be temporarily unavailable\\.`;
- 
+
   await bot.sendMessage(chatId, text, {
     parse_mode: "MarkdownV2",
     reply_markup: {
@@ -293,30 +307,48 @@ RPC may be temporarily unavailable\\.`;
     },
   });
 }
- 
-// ── Send DEX live message (all 17 EUROSPACE pairs) ────────
+
+// ── DEX live — tries DexScreener first, falls back to on-chain RPC ────────────
 async function sendDexMessage(chatId, filter = "all") {
-  const loadingMsg = await bot.sendMessage(chatId, "⏳ Fetching DEX prices from DexScreener...");
- 
-  const pairData = await fetchDexScreenerPairs(DEX_PAIRS.map(p => p.pair));
- 
-  await bot.deleteMessage(chatId, loadingMsg.message_id).catch(() => {});
- 
-  // Apply filter
+  const loadingMsg = await bot.sendMessage(chatId, "⏳ Fetching DEX prices...");
+
+  // Try DexScreener first
+  const dsData = await fetchDexScreenerPairs(DEX_PAIRS.map(p => p.pair));
+  const dsHasData = Object.keys(dsData).length > 0;
+
   const filtered = filter === "stable"
     ? DEX_PAIRS.filter(p => ["mUSDC","mUSDT"].includes(p.symbol))
     : filter === "euro"
     ? DEX_PAIRS.filter(p => ["EURO","mEURO","mEURC"].includes(p.symbol))
     : DEX_PAIRS;
- 
-  let lines = [`📊 *EUROSPACE DEX Live · Monad*`, `━━━━━━━━━━━━━━━━━━━━`];
- 
+
+  // For each pair, get price: DS first, then on-chain RPC fallback
+  const pairPrices = {};
   for (const p of filtered) {
     const key = p.pair.toLowerCase();
-    const pd  = pairData[key];
-    const hasPrice = pd && pd.priceNative > 0;
- 
-    const priceStr = hasPrice ? fmtNative(pd.priceNative) + " WMON" : "—";
+    if (dsHasData && dsData[key] && dsData[key].priceNative > 0) {
+      pairPrices[key] = { price: dsData[key].priceNative, source: "DS", ...dsData[key] };
+    } else {
+      const onchain = await fetchPairOnChainPrice(p.pair);
+      if (onchain) pairPrices[key] = { price: onchain, priceNative: onchain, source: "RPC" };
+    }
+  }
+
+  await bot.deleteMessage(chatId, loadingMsg.message_id).catch(() => {});
+
+  const sourceNote = dsHasData ? "DexScreener API" : "On-Chain RPC (DS not indexed yet)";
+
+  let lines = [
+    `📊 *EUROSPACE DEX Live · Monad*`,
+    `_Source: ${sourceNote}_`,
+    `━━━━━━━━━━━━━━━━━━━━`,
+  ];
+
+  for (const p of filtered) {
+    const key = p.pair.toLowerCase();
+    const pd  = pairPrices[key];
+    const hasPrice = pd && pd.price > 0;
+    const priceStr = hasPrice ? fmtNative(pd.price) + " WMON" : "—";
     const usdStr   = hasPrice && pd.priceUsd ? fmtUsd(pd.priceUsd) : "";
     const ch24     = pd?.change24h ?? null;
     const ch1h     = pd?.change1h  ?? null;
@@ -324,22 +356,21 @@ async function sendDexMessage(chatId, filter = "all") {
     const chg1hStr = ch1h !== null ? chgArrow(ch1h) + " 1h"  : "";
     const liq      = fmtVolLiq(pd?.liquidity);
     const vol      = fmtVolLiq(pd?.volume24h);
- 
+    const srcTag   = pd?.source === "RPC" ? " _(on-chain)_" : "";
+
     lines.push(
-      `\n*${p.symbol}* · ${p.name}`,
+      `\n*${p.symbol}* · ${p.name}${srcTag}`,
       `💱 \`${priceStr}\`${usdStr ? " · " + usdStr : ""}`,
       [chg24Str, chg1hStr].filter(Boolean).join(" | ") || "",
       [liq ? "💧" + liq : "", vol ? "📊" + vol : ""].filter(Boolean).join(" · ") || "",
     );
   }
- 
-  lines.push(`━━━━━━━━━━━━━━━━━━━━`, `_via DexScreener API · Monad Mainnet_`);
- 
-  const text = lines.filter(l => l !== "").join("\n");
- 
-  // Trim if too long for Telegram (4096 char limit)
+
+  lines.push(`━━━━━━━━━━━━━━━━━━━━`);
+
+  const text    = lines.filter(l => l !== "").join("\n");
   const trimmed = text.length > 4000 ? text.slice(0, 3990) + "\n…" : text;
- 
+
   await bot.sendMessage(chatId, trimmed, {
     parse_mode: "Markdown",
     reply_markup: {
@@ -356,7 +387,7 @@ async function sendDexMessage(chatId, filter = "all") {
     },
   });
 }
- 
+
 // ── Commands ──────────────────────────────────────────────
 bot.onText(/\/start/, (msg) =>
   bot.sendMessage(msg.chat.id, MAIN_MENU_TEXT, { parse_mode:"Markdown", reply_markup:MAIN_MENU_KEYBOARD })
@@ -366,7 +397,7 @@ bot.onText(/\/menu/, (msg) =>
 );
 bot.onText(/\/price/, async (msg) => sendPriceMessage(msg.chat.id));
 bot.onText(/\/dex/,   async (msg) => sendDexMessage(msg.chat.id, "all"));
- 
+
 bot.onText(/\/nfts/, async (msg) => {
   const chatId = msg.chat.id;
   await bot.sendMessage(chatId, "🚀 Loading all 11 Moon Rockets NFTs...");
@@ -381,7 +412,7 @@ bot.onText(/\/nfts/, async (msg) => {
     } catch (e) { console.error(`Error sending NFT ${nft.id}:`, e.message); }
   }
 });
- 
+
 bot.onText(/\/nft(\d+)/, async (msg, match) => {
   const nft = NFTS.find(n => n.id === parseInt(match[1]));
   if (!nft) return bot.sendMessage(msg.chat.id, "❌ NFT not found. Use /nft1 - /nft11");
@@ -391,7 +422,7 @@ bot.onText(/\/nft(\d+)/, async (msg, match) => {
     bot.sendMessage(msg.chat.id, nftCaption(nft), { parse_mode:"Markdown", reply_markup:nftKeyboard(nft) });
   }
 });
- 
+
 bot.onText(/\/trade/, (msg) => bot.sendMessage(msg.chat.id,
   `📈 *Trade RMAD Token*
 ━━━━━━━━━━━━━━━━━━━━
@@ -407,7 +438,7 @@ bot.onText(/\/trade/, (msg) => bot.sendMessage(msg.chat.id,
     [{ text:"📊 View on MonadVision", url:MONAD_URL }],
   ]}}
 ));
- 
+
 bot.onText(/\/stake/, (msg) => bot.sendMessage(msg.chat.id,
   `🔒 *How to Stake Moon Rockets*
 ━━━━━━━━━━━━━━━━━━━━
@@ -425,7 +456,7 @@ bot.onText(/\/stake/, (msg) => bot.sendMessage(msg.chat.id,
     [{ text:"🏠 Main Menu", callback_data:"main_menu" }],
   ]}}
 ));
- 
+
 bot.onText(/\/info/, (msg) => bot.sendMessage(msg.chat.id,
   `💎 *RMAD Token Info*
 ━━━━━━━━━━━━━━━━━━━━
@@ -446,7 +477,7 @@ bot.onText(/\/info/, (msg) => bot.sendMessage(msg.chat.id,
     [{ text:"🏠 Main Menu", callback_data:"main_menu" }],
   ]}}
 ));
- 
+
 bot.onText(/\/help/, (msg) => bot.sendMessage(msg.chat.id,
   `🚀 *RocketMoonad Bot Commands*
 ━━━━━━━━━━━━━━━━━━━━
@@ -462,29 +493,19 @@ bot.onText(/\/help/, (msg) => bot.sendMessage(msg.chat.id,
 ━━━━━━━━━━━━━━━━━━━━`,
   { parse_mode:"Markdown" }
 ));
- 
-// ── Callback query handler ────────────────────────────────
+
 bot.on("callback_query", async (query) => {
   const data   = query.data;
   const chatId = query.message.chat.id;
   try { await bot.answerCallbackQuery(query.id); } catch (e) {}
- 
+
   if (data === "noop") return;
- 
-  if (data === "main_menu") {
-    await bot.sendMessage(chatId, MAIN_MENU_TEXT, { parse_mode:"Markdown", reply_markup:MAIN_MENU_KEYBOARD });
-    return;
-  }
- 
-  if (data === "price_check") {
-    await sendPriceMessage(chatId);
-    return;
-  }
- 
-  if (data === "dex_all")    { await sendDexMessage(chatId, "all");    return; }
-  if (data === "dex_euro")   { await sendDexMessage(chatId, "euro");   return; }
-  if (data === "dex_stable") { await sendDexMessage(chatId, "stable"); return; }
- 
+  if (data === "main_menu")   { await bot.sendMessage(chatId, MAIN_MENU_TEXT, { parse_mode:"Markdown", reply_markup:MAIN_MENU_KEYBOARD }); return; }
+  if (data === "price_check") { await sendPriceMessage(chatId); return; }
+  if (data === "dex_all")     { await sendDexMessage(chatId, "all");    return; }
+  if (data === "dex_euro")    { await sendDexMessage(chatId, "euro");   return; }
+  if (data === "dex_stable")  { await sendDexMessage(chatId, "stable"); return; }
+
   if (data === "how_stake") {
     await bot.sendMessage(chatId,
       `🔒 *How to Stake Moon Rockets*
@@ -503,15 +524,11 @@ bot.on("callback_query", async (query) => {
     );
     return;
   }
- 
+
   if (data === "token_info") {
     await bot.sendMessage(chatId,
       `💎 *RMAD Token Info*
 ━━━━━━━━━━━━━━━━━━━━
-🌐 Network: Monad Mainnet (Chain ID: 143)
-💎 Token: \`RMAD\`
-📦 NFT: Moon Rockets Season 1
-🔢 Total NFTs: 11 unique characters
 💎 RMAD: \`${RMAD_ADDR}\`
 🖼️ NFT: \`${NFT_ADDR}\`
 🔒 Staking: \`${STAKING_ADDR}\`
@@ -524,14 +541,13 @@ bot.on("callback_query", async (query) => {
     );
     return;
   }
- 
+
   if (data === "all_nfts") {
     await bot.sendMessage(chatId, "🚀 Sending all 11 NFT cards...");
     for (const nft of NFTS) {
       try {
         await bot.sendPhoto(chatId, nft.image, {
-          caption: nftCaption(nft),
-          parse_mode: "Markdown",
+          caption: nftCaption(nft), parse_mode: "Markdown",
           reply_markup:{ inline_keyboard:[[{ text:"🌐 dApp", url:DAPP_URL }, { text:"📈 Trade", url:DEX_URL }]] },
         });
         await new Promise(r => setTimeout(r, 400));
@@ -539,7 +555,7 @@ bot.on("callback_query", async (query) => {
     }
     return;
   }
- 
+
   if (data.startsWith("nft_")) {
     const nft = NFTS.find(n => n.id === parseInt(data.split("_")[1]));
     if (!nft) return;
@@ -551,6 +567,5 @@ bot.on("callback_query", async (query) => {
     return;
   }
 });
- 
+
 console.log("🚀 RocketMoonad Bot started!");
- 
