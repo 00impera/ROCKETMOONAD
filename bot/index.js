@@ -1,5 +1,4 @@
-Bot · JS
-Copy
+
 
 const TelegramBot = require("node-telegram-bot-api");
 const http = require("http");
