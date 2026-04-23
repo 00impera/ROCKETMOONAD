@@ -17,7 +17,7 @@ const NFT_ADDR     = "0x45336C2E15F2fe58c67Ee4035a520231b2751669";
 const STAKING_ADDR = "0xec5773F31CA0F4012624392243E0B6517B518976";
 const RMAD_ADDR    = "0x9a440Afaa434cDd19234e58798DeFA0E71be0A67";
 const WMON_ADDR    = "0x2cE8C8F4961a54B2e87585f4178467006B76B418";
-const RMAD_PAIR    = "0xb5cb9f4eccbeae6f95c9222aa12c319ff362a5a3";
+const RMAD_PAIR    = "0x754704bc059f8c67012fed69bc8a327a5aafb603";
 const MONAD_RPCS   = ["https://rpc.monad.xyz", "https://rpc.ankr.com/monad_mainnet"];
 const DS_API       = "https://api.dexscreener.com/latest/dex/pairs/monad";
 
