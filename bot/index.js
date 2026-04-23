@@ -8,6 +8,14 @@ const bot   = new TelegramBot(TOKEN, { polling: true });
 http.createServer((req, res) => res.end("🚀 RocketMoonad Bot is running!"))
     .listen(process.env.PORT || 3000);
 
+// ── Crash protection ──────────────────────────────────────
+process.on("unhandledRejection", (err) => {
+  console.error("Unhandled rejection:", err.message);
+});
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught exception:", err.message);
+});
+
 const DAPP_URL    = "https://6e82f368.rocketmoonad.pages.dev";
 const DEX_URL     = "https://dexscreener.com/monad/0xb5cb9f4eccbeae6f95c9222aa12c319ff362a5a3";
 const MONAD_URL   = "https://monadvision.com/token/0x9a440Afaa434cDd19234e58798DeFA0E71be0A67?tab=Holders";
@@ -40,23 +48,8 @@ const NFTS = [
     image:"https://res.cloudinary.com/drmsykh02/image/upload/v1776867774/rocketmoonad/nfts/boys_club_rocket_ride.gif" },
 ];
 
-const RARITY_EMOJI = {
-  Legendary: "🔥",
-  Mythic:    "🐉",
-  Epic:      "💜",
-  Rare:      "💙",
-  Uncommon:  "💚",
-  Common:    "⚪",
-};
-
-const RARITY_STARS = {
-  Legendary: "⭐⭐⭐⭐⭐",
-  Mythic:    "🌟🌟🌟🌟🌟",
-  Epic:      "⭐⭐⭐⭐",
-  Rare:      "⭐⭐⭐",
-  Uncommon:  "⭐⭐",
-  Common:    "⭐",
-};
+const RARITY_EMOJI = { Legendary:"🔥", Mythic:"🐉", Epic:"💜", Rare:"💙", Uncommon:"💚", Common:"⚪" };
+const RARITY_STARS = { Legendary:"⭐⭐⭐⭐⭐", Mythic:"🌟🌟🌟🌟🌟", Epic:"⭐⭐⭐⭐", Rare:"⭐⭐⭐", Uncommon:"⭐⭐", Common:"⭐" };
 
 function bar(value) {
   const filled = Math.round(value / 10);
@@ -88,22 +81,14 @@ ${emoji} *${nft.name}*
 function nftKeyboard(nft) {
   return {
     inline_keyboard: [
-      [
-        { text: "🌐 Open dApp",    url: DAPP_URL },
-        { text: "📈 Trade RMAD",   url: DEX_URL  },
-      ],
-      [
-        { text: "📊 MonadVision",  url: MONAD_URL },
-        { text: "🔍 Staking",      url: `${DAPP_URL}` },
-      ],
+      [{ text: "🌐 Open dApp", url: DAPP_URL }, { text: "📈 Trade RMAD", url: DEX_URL }],
+      [{ text: "📊 MonadVision", url: MONAD_URL }, { text: "🔍 Staking", url: DAPP_URL }],
       [
         { text: "◀️ Prev NFT", callback_data: `nft_${nft.id - 1 < 1 ? 11 : nft.id - 1}` },
-        { text: `${nft.id}/11`,    callback_data: "noop" },
+        { text: `${nft.id}/11`, callback_data: "noop" },
         { text: "Next NFT ▶️", callback_data: `nft_${nft.id + 1 > 11 ? 1 : nft.id + 1}` },
       ],
-      [
-        { text: "🏠 Main Menu", callback_data: "main_menu" },
-      ],
+      [{ text: "🏠 Main Menu", callback_data: "main_menu" }],
     ],
   };
 }
@@ -130,111 +115,49 @@ const MAIN_MENU_TEXT = `
 
 const MAIN_MENU_KEYBOARD = {
   inline_keyboard: [
-    [
-      { text: "🌐 Open dApp",       url: DAPP_URL   },
-      { text: "📈 Trade RMAD",      url: DEX_URL    },
-    ],
-    [
-      { text: "🖼️ View All NFTs",   callback_data: "nft_1"      },
-      { text: "📊 Token Info",       callback_data: "token_info" },
-    ],
-    [
-      { text: "📊 MonadVision",      url: MONAD_URL  },
-      { text: "ℹ️ How to Stake",     callback_data: "how_stake"  },
-    ],
-    [
-      { text: "📋 All NFT Cards",    callback_data: "all_nfts"   },
-    ],
+    [{ text: "🌐 Open dApp", url: DAPP_URL }, { text: "📈 Trade RMAD", url: DEX_URL }],
+    [{ text: "🖼️ View All NFTs", callback_data: "nft_1" }, { text: "📊 Token Info", callback_data: "token_info" }],
+    [{ text: "📊 MonadVision", url: MONAD_URL }, { text: "ℹ️ How to Stake", callback_data: "how_stake" }],
+    [{ text: "📋 All NFT Cards", callback_data: "all_nfts" }],
   ],
 };
 
-// ── /start ────────────────────────────────────────────────
-bot.onText(/\/start/, (msg) => {
-  bot.sendMessage(msg.chat.id, MAIN_MENU_TEXT, {
-    parse_mode: "Markdown",
-    reply_markup: MAIN_MENU_KEYBOARD,
-  });
-});
+bot.onText(/\/start/, (msg) => bot.sendMessage(msg.chat.id, MAIN_MENU_TEXT, { parse_mode: "Markdown", reply_markup: MAIN_MENU_KEYBOARD }));
+bot.onText(/\/menu/,  (msg) => bot.sendMessage(msg.chat.id, MAIN_MENU_TEXT, { parse_mode: "Markdown", reply_markup: MAIN_MENU_KEYBOARD }));
 
-// ── /menu ─────────────────────────────────────────────────
-bot.onText(/\/menu/, (msg) => {
-  bot.sendMessage(msg.chat.id, MAIN_MENU_TEXT, {
-    parse_mode: "Markdown",
-    reply_markup: MAIN_MENU_KEYBOARD,
-  });
-});
-
-// ── /nfts ─────────────────────────────────────────────────
 bot.onText(/\/nfts/, async (msg) => {
   const chatId = msg.chat.id;
   await bot.sendMessage(chatId, "🚀 Loading all 11 Moon Rockets NFTs...");
   for (const nft of NFTS) {
     try {
-      await bot.sendPhoto(chatId, nft.image, {
-        caption: nftCaption(nft),
-        parse_mode: "Markdown",
-        reply_markup: {
-          inline_keyboard: [[
-            { text: "🌐 dApp",       url: DAPP_URL },
-            { text: "📈 Trade",      url: DEX_URL  },
-          ]],
-        },
-      });
+      await bot.sendPhoto(chatId, nft.image, { caption: nftCaption(nft), parse_mode: "Markdown", reply_markup: { inline_keyboard: [[{ text: "🌐 dApp", url: DAPP_URL }, { text: "📈 Trade", url: DEX_URL }]] } });
       await new Promise(r => setTimeout(r, 400));
-    } catch (e) {
-      console.error(`Error sending NFT ${nft.id}:`, e.message);
-    }
+    } catch (e) { console.error(`Error sending NFT ${nft.id}:`, e.message); }
   }
 });
 
-// ── /nft <id> ─────────────────────────────────────────────
 bot.onText(/\/nft(\d+)/, async (msg, match) => {
-  const id  = parseInt(match[1]);
-  const nft = NFTS.find(n => n.id === id);
+  const nft = NFTS.find(n => n.id === parseInt(match[1]));
   if (!nft) return bot.sendMessage(msg.chat.id, "❌ NFT not found. Use /nft1 - /nft11");
   try {
-    await bot.sendPhoto(msg.chat.id, nft.image, {
-      caption: nftCaption(nft),
-      parse_mode: "Markdown",
-      reply_markup: nftKeyboard(nft),
-    });
+    await bot.sendPhoto(msg.chat.id, nft.image, { caption: nftCaption(nft), parse_mode: "Markdown", reply_markup: nftKeyboard(nft) });
   } catch (e) {
-    bot.sendMessage(msg.chat.id, nftCaption(nft), {
-      parse_mode: "Markdown",
-      reply_markup: nftKeyboard(nft),
-    });
+    bot.sendMessage(msg.chat.id, nftCaption(nft), { parse_mode: "Markdown", reply_markup: nftKeyboard(nft) });
   }
 });
 
-// ── /trade ────────────────────────────────────────────────
-bot.onText(/\/trade/, (msg) => {
-  bot.sendMessage(msg.chat.id,
+bot.onText(/\/trade/, (msg) => bot.sendMessage(msg.chat.id,
 `📈 *Trade RMAD Token*
 ━━━━━━━━━━━━━━━━━━━━
 💱 Pair: \`RMAD / WMON\`
 🏦 DEX: Uniswap V2 Fork on Monad
-📍 Pair Address:
-\`0xb5cb9f4eccbeae6f95c9222aa12c319ff362a5a3\`
-
-💎 RMAD Token:
-\`${RMAD_ADDR}\`
+📍 Pair Address: \`0xb5cb9f4eccbeae6f95c9222aa12c319ff362a5a3\`
+💎 RMAD Token: \`${RMAD_ADDR}\`
 ━━━━━━━━━━━━━━━━━━━━`,
-    {
-      parse_mode: "Markdown",
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: "📈 Trade on DexScreener", url: DEX_URL }],
-          [{ text: "🌐 Open dApp",            url: DAPP_URL }],
-          [{ text: "📊 View on MonadVision",  url: MONAD_URL }],
-        ],
-      },
-    }
-  );
-});
+  { parse_mode: "Markdown", reply_markup: { inline_keyboard: [[{ text: "📈 Trade on DexScreener", url: DEX_URL }], [{ text: "🌐 Open dApp", url: DAPP_URL }], [{ text: "📊 View on MonadVision", url: MONAD_URL }]] } }
+));
 
-// ── /stake ────────────────────────────────────────────────
-bot.onText(/\/stake/, (msg) => {
-  bot.sendMessage(msg.chat.id,
+bot.onText(/\/stake/, (msg) => bot.sendMessage(msg.chat.id,
 `🔒 *How to Stake Moon Rockets*
 ━━━━━━━━━━━━━━━━━━━━
 1️⃣ Connect wallet on Monad Mainnet
@@ -243,58 +166,29 @@ bot.onText(/\/stake/, (msg) => {
 4️⃣ Earn RMAD rewards daily
 5️⃣ Click \`−\` to unstake anytime
 6️⃣ Click \`Claim\` to collect RMAD
-
 💡 You can stake multiple NFTs at once!
 ━━━━━━━━━━━━━━━━━━━━
-🔒 Staking Contract:
-\`${STAKING_ADDR}\``,
-    {
-      parse_mode: "Markdown",
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: "🌐 Start Staking", url: DAPP_URL }],
-          [{ text: "🏠 Main Menu",     callback_data: "main_menu" }],
-        ],
-      },
-    }
-  );
-});
+🔒 Staking Contract: \`${STAKING_ADDR}\``,
+  { parse_mode: "Markdown", reply_markup: { inline_keyboard: [[{ text: "🌐 Start Staking", url: DAPP_URL }], [{ text: "🏠 Main Menu", callback_data: "main_menu" }]] } }
+));
 
-// ── /info ─────────────────────────────────────────────────
-bot.onText(/\/info/, (msg) => {
-  bot.sendMessage(msg.chat.id,
+bot.onText(/\/info/, (msg) => bot.sendMessage(msg.chat.id,
 `💎 *RMAD Token Info*
 ━━━━━━━━━━━━━━━━━━━━
 🌐 Network: Monad Mainnet (Chain ID: 143)
 💎 Token: \`RMAD\`
 📦 NFT: Moon Rockets Season 1
 🔢 Total NFTs: 11 unique characters
-
 📋 *Contracts*
 💎 RMAD: \`${RMAD_ADDR}\`
 🖼️ NFT: \`${NFT_ADDR}\`
 🔒 Staking: \`${STAKING_ADDR}\`
 💱 LP Pair: \`0xb5cb9f4eccbeae6f95c9222aa12c319ff362a5a3\`
 ━━━━━━━━━━━━━━━━━━━━`,
-    {
-      parse_mode: "Markdown",
-      reply_markup: {
-        inline_keyboard: [
-          [
-            { text: "📈 Trade",        url: DEX_URL    },
-            { text: "📊 MonadVision",  url: MONAD_URL  },
-          ],
-          [{ text: "🌐 Open dApp",     url: DAPP_URL   }],
-          [{ text: "🏠 Main Menu",     callback_data: "main_menu" }],
-        ],
-      },
-    }
-  );
-});
+  { parse_mode: "Markdown", reply_markup: { inline_keyboard: [[{ text: "📈 Trade", url: DEX_URL }, { text: "📊 MonadVision", url: MONAD_URL }], [{ text: "🌐 Open dApp", url: DAPP_URL }], [{ text: "🏠 Main Menu", callback_data: "main_menu" }]] } }
+));
 
-// ── /help ─────────────────────────────────────────────────
-bot.onText(/\/help/, (msg) => {
-  bot.sendMessage(msg.chat.id,
+bot.onText(/\/help/, (msg) => bot.sendMessage(msg.chat.id,
 `🚀 *RocketMoonad Bot Commands*
 ━━━━━━━━━━━━━━━━━━━━
 /start   — Main menu
@@ -305,24 +199,19 @@ bot.onText(/\/help/, (msg) => {
 /info    — Token & contract info
 /help    — This help message
 ━━━━━━━━━━━━━━━━━━━━`,
-    { parse_mode: "Markdown" }
-  );
-});
+  { parse_mode: "Markdown" }
+));
 
-// ── CALLBACK QUERIES ──────────────────────────────────────
 bot.on("callback_query", async (query) => {
   const data   = query.data;
   const chatId = query.message.chat.id;
 
-  await bot.answerCallbackQuery(query.id);
+  try { await bot.answerCallbackQuery(query.id); } catch (e) {}
 
   if (data === "noop") return;
 
   if (data === "main_menu") {
-    await bot.sendMessage(chatId, MAIN_MENU_TEXT, {
-      parse_mode: "Markdown",
-      reply_markup: MAIN_MENU_KEYBOARD,
-    });
+    await bot.sendMessage(chatId, MAIN_MENU_TEXT, { parse_mode: "Markdown", reply_markup: MAIN_MENU_KEYBOARD });
     return;
   }
 
@@ -334,21 +223,12 @@ bot.on("callback_query", async (query) => {
 💎 Token: \`RMAD\`
 📦 NFT: Moon Rockets Season 1
 🔢 Total NFTs: 11 unique characters
-
 📋 *Contracts*
 💎 RMAD: \`${RMAD_ADDR}\`
 🖼️ NFT: \`${NFT_ADDR}\`
 🔒 Staking: \`${STAKING_ADDR}\`
 ━━━━━━━━━━━━━━━━━━━━`,
-      {
-        parse_mode: "Markdown",
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: "📈 Trade", url: DEX_URL }, { text: "📊 MonadVision", url: MONAD_URL }],
-            [{ text: "🏠 Main Menu", callback_data: "main_menu" }],
-          ],
-        },
-      }
+      { parse_mode: "Markdown", reply_markup: { inline_keyboard: [[{ text: "📈 Trade", url: DEX_URL }, { text: "📊 MonadVision", url: MONAD_URL }], [{ text: "🏠 Main Menu", callback_data: "main_menu" }]] } }
     );
     return;
   }
@@ -364,15 +244,7 @@ bot.on("callback_query", async (query) => {
 5️⃣ Click \`−\` to unstake anytime
 6️⃣ Click \`Claim\` to collect RMAD
 ━━━━━━━━━━━━━━━━━━━━`,
-      {
-        parse_mode: "Markdown",
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: "🌐 Start Staking", url: DAPP_URL }],
-            [{ text: "🏠 Main Menu", callback_data: "main_menu" }],
-          ],
-        },
-      }
+      { parse_mode: "Markdown", reply_markup: { inline_keyboard: [[{ text: "🌐 Start Staking", url: DAPP_URL }], [{ text: "🏠 Main Menu", callback_data: "main_menu" }]] } }
     );
     return;
   }
@@ -381,39 +253,20 @@ bot.on("callback_query", async (query) => {
     await bot.sendMessage(chatId, "🚀 Sending all 11 NFT cards...");
     for (const nft of NFTS) {
       try {
-        await bot.sendPhoto(chatId, nft.image, {
-          caption: nftCaption(nft),
-          parse_mode: "Markdown",
-          reply_markup: {
-            inline_keyboard: [[
-              { text: "🌐 dApp", url: DAPP_URL },
-              { text: "📈 Trade", url: DEX_URL },
-            ]],
-          },
-        });
+        await bot.sendPhoto(chatId, nft.image, { caption: nftCaption(nft), parse_mode: "Markdown", reply_markup: { inline_keyboard: [[{ text: "🌐 dApp", url: DAPP_URL }, { text: "📈 Trade", url: DEX_URL }]] } });
         await new Promise(r => setTimeout(r, 400));
-      } catch (e) {
-        console.error(`NFT ${nft.id} error:`, e.message);
-      }
+      } catch (e) { console.error(`NFT ${nft.id} error:`, e.message); }
     }
     return;
   }
 
   if (data.startsWith("nft_")) {
-    const id  = parseInt(data.split("_")[1]);
-    const nft = NFTS.find(n => n.id === id);
+    const nft = NFTS.find(n => n.id === parseInt(data.split("_")[1]));
     if (!nft) return;
     try {
-      await bot.sendPhoto(chatId, nft.image, {
-        caption: nftCaption(nft),
-        parse_mode: "Markdown",
-        reply_markup: nftKeyboard(nft),
-      });
+      await bot.sendPhoto(chatId, nft.image, { caption: nftCaption(nft), parse_mode: "Markdown", reply_markup: nftKeyboard(nft) });
     } catch (e) {
-      await bot.sendMessage(chatId, nftCaption(nft), {
-        parse_mode: "Markdown",
-        reply_markup: nftKeyboard(nft),
-      });
+      await bot.sendMessage(chatId, nftCaption(nft), { parse_mode: "Markdown", reply_markup: nftKeyboard(nft) });
     }
   }
 });
