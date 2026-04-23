@@ -77,10 +77,23 @@ async function fetchPairReserves(pairAddr) {
   } catch (_) { return null; }
 }
 
-function calcRmadPrice(r0, r1) {
-  const rmadIsToken0 = RMAD_ADDR.toLowerCase() < WMON_ADDR.toLowerCase();
-  if (rmadIsToken0) return Number((r1 * 1000000n) / r0) / 1000000;
-  return Number((r0 * 1000000n) / r1) / 1000000;
+// Fetch token0 address from a pair contract (cached externally)
+async function fetchToken0(pairAddr) {
+  try {
+    // token0() selector: 0x0dfe1681
+    const res = await rpcFetch("eth_call", [{ to: pairAddr, data: "0x0dfe1681" }, "latest"]);
+    if (!res || res === "0x" || res.length < 66) return null;
+    return ("0x" + res.slice(26)).toLowerCase();
+  } catch (_) { return null; }
+}
+
+// Correct RMAD price: WMON per RMAD
+function calcRmadPrice(r0, r1, token0Addr) {
+  const rmadIsToken0 = token0Addr
+    ? token0Addr === RMAD_ADDR.toLowerCase()
+    : RMAD_ADDR.toLowerCase() < WMON_ADDR.toLowerCase();
+  if (rmadIsToken0) return Number((r1 * 1_000_000_000n) / r0) / 1_000_000_000;
+  return Number((r0 * 1_000_000_000n) / r1) / 1_000_000_000;
 }
 
 // ─── AD BANNER ───────────────────────────────────────────────────────────────
@@ -133,17 +146,22 @@ function AdBanner() {
   );
 }
 
-// ─── LIVE DEX PRICE HOOK (RMAD) ───────────────────────────────────────────────
+// ─── LIVE DEX PRICE HOOK (RMAD) — FIXED ──────────────────────────────────────
 function useLiveDexPrice() {
   const [dexPrice,   setDexPrice]   = useState(null);
   const [dexChange,  setDexChange]  = useState(null);
   const [dexLoading, setDexLoading] = useState(true);
-  const prevRef = useRef(null);
+  const prevRef    = useRef(null);
+  const token0Ref  = useRef(null); // cache token0 address
 
   async function load() {
+    // Fetch token0 once and cache it
+    if (!token0Ref.current) {
+      token0Ref.current = await fetchToken0(RMAD_PAIR);
+    }
     const data = await fetchPairReserves(RMAD_PAIR);
     if (!data) { setDexLoading(false); return; }
-    const price = calcRmadPrice(data.r0, data.r1);
+    const price = calcRmadPrice(data.r0, data.r1, token0Ref.current);
     if (prevRef.current !== null) setDexChange(((price - prevRef.current) / prevRef.current) * 100);
     prevRef.current = price;
     setDexPrice(price);
@@ -154,19 +172,40 @@ function useLiveDexPrice() {
   return { dexPrice, dexChange, dexLoading };
 }
 
-// ─── DEX PRICES HOOK (17 EUROSPACE PAIRS) ────────────────────────────────────
+// ─── DEX PRICES HOOK (17 EUROSPACE PAIRS) — FIXED ────────────────────────────
 function useDexPrices() {
   const [prices, setPrices] = useState({});
+  const token0Cache = useRef({}); // { pairAddr: token0Addr }
+
+  async function getToken0(pairAddr) {
+    if (token0Cache.current[pairAddr]) return token0Cache.current[pairAddr];
+    const addr = await fetchToken0(pairAddr);
+    if (addr) token0Cache.current[pairAddr] = addr;
+    return addr;
+  }
 
   async function load() {
+    const WMON = WMON_ADDR.toLowerCase();
     const results = {};
+
     await Promise.all(DEX_PAIRS.map(async p => {
-      const data = await fetchPairReserves(p.pair);
-      if (!data) return;
-      // token0 is lower address — price = r1/r0 or r0/r1
-      const price = Number((data.r1 * 1000000n) / data.r0) / 1000000;
+      const [reserves, token0] = await Promise.all([
+        fetchPairReserves(p.pair),
+        getToken0(p.pair),
+      ]);
+      if (!reserves || !token0) return;
+
+      const { r0, r1 } = reserves;
+      // We want: price of the meta token expressed in WMON
+      // If WMON is token0: metaToken is token1 → price = r0 / r1 (WMON per meta)
+      // If WMON is token1: metaToken is token0 → price = r1 / r0 (WMON per meta)
+      const price = token0 === WMON
+        ? Number((r0 * 1_000_000_000n) / r1) / 1_000_000_000
+        : Number((r1 * 1_000_000_000n) / r0) / 1_000_000_000;
+
       results[p.pair] = { price, updatedAt: Date.now() };
     }));
+
     setPrices(results);
   }
 
@@ -253,7 +292,7 @@ function Dashboard() {
               <div style={{ fontSize: "9px", color: "#444", letterSpacing: "1px", textTransform: "uppercase", marginBottom: "2px" }}>RMAD / WMON · On-Chain</div>
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                 <span style={{ fontSize: "15px", fontWeight: "700", color: "var(--green)", fontFamily: "var(--font-mono)", animation: dexLoading ? "pricePulse 1.5s infinite" : "none" }}>
-                  {dexLoading ? "Loading…" : dexPrice !== null ? dexPrice.toFixed(8) + " WMON" : "No liquidity"}
+                  {dexLoading ? "Loading…" : dexPrice !== null ? dexPrice.toFixed(10) + " WMON" : "No liquidity"}
                 </span>
                 {dexChange !== null && <span style={{ color: dexChange > 0 ? "var(--green)" : "var(--red)", fontSize: "11px" }}>{fmtChange(dexChange)}</span>}
               </div>
@@ -347,7 +386,7 @@ function Dashboard() {
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: "14px" }}>
                   <AnimatePresence>
                     {filtered.map(n => (
-                      <NftCard key={n.id} nft={n} staked={n.staked} price={dexPrice ? dexPrice.toFixed(8) + " WMON" : price} change={dexChange ?? change} priceLoading={dexLoading} onToggle={toggleNft} isPending={isPending} />
+                      <NftCard key={n.id} nft={n} staked={n.staked} price={dexPrice ? dexPrice.toFixed(10) + " WMON" : price} change={dexChange ?? change} priceLoading={dexLoading} onToggle={toggleNft} isPending={isPending} />
                     ))}
                   </AnimatePresence>
                 </div>
@@ -396,7 +435,7 @@ function Dashboard() {
                     </div>
                     <div style={{ textAlign: "right" }}>
                       <div style={{ fontSize: "11px", fontWeight: "700", color: hasPrice ? "#00e5ff" : "#333", fontFamily: "var(--font-mono)" }}>
-                        {hasPrice ? pd.price.toFixed(6) : "—"}
+                        {hasPrice ? pd.price.toFixed(8) : "—"}
                       </div>
                       <div style={{ fontSize: "9px", color: "#444", marginTop: "2px" }}>WMON</div>
                     </div>
@@ -417,7 +456,7 @@ function Dashboard() {
             )}
 
             <div style={{ marginTop: "14px", padding: "10px 14px", background: "var(--bg-panel)", borderRadius: "8px", fontSize: "10px", color: "#444", lineHeight: 1.8 }}>
-              ℹ️ Prices read live from on-chain reserves via <code style={{ color: "#836ef9" }}>getReserves()</code> every 30s. Click any pair to open embedded chart. Data from EUROSPACE DEX on Monad Mainnet.
+              ℹ️ Prices read live from on-chain reserves via <code style={{ color: "#836ef9" }}>getReserves()</code> every 30s. Token0 direction resolved via <code style={{ color: "#836ef9" }}>token0()</code> (cached). Click any pair to open embedded chart. Data from EUROSPACE DEX on Monad Mainnet.
             </div>
           </div>
         )}
