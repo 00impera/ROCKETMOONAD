@@ -11,7 +11,7 @@ process.on("unhandledRejection", (err) => console.error("Unhandled rejection:", 
 process.on("uncaughtException",  (err) => console.error("Uncaught exception:",  err.message));
 
 const DAPP_URL     = "https://6e82f368.rocketmoonad.pages.dev";
-const DEX_URL      = "https://dexscreener.com/monad/0xb5cb9f4eccbeae6f95c9222aa12c319ff362a5a3";
+const DEX_URL      = "https://dexscreener.com/monad/0x2cE8C8F4961a54B2e87585f4178467006B76B418";
 const MONAD_URL    = "https://monadvision.com/token/0x9a440Afaa434cDd19234e58798DeFA0E71be0A67?tab=Holders";
 const NFT_ADDR     = "0x45336C2E15F2fe58c67Ee4035a520231b2751669";
 const STAKING_ADDR = "0xec5773F31CA0F4012624392243E0B6517B518976";
