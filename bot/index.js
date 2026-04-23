@@ -1,7 +1,12 @@
 const TelegramBot = require("node-telegram-bot-api");
+const http = require("http");
 
 const TOKEN = process.env.BOT_TOKEN;
 const bot   = new TelegramBot(TOKEN, { polling: true });
+
+// ── Keep-alive HTTP server for Render free tier ───────────
+http.createServer((req, res) => res.end("🚀 RocketMoonad Bot is running!"))
+    .listen(process.env.PORT || 3000);
 
 const DAPP_URL    = "https://6e82f368.rocketmoonad.pages.dev";
 const DEX_URL     = "https://dexscreener.com/monad/0xb5cb9f4eccbeae6f95c9222aa12c319ff362a5a3";
@@ -308,7 +313,6 @@ bot.onText(/\/help/, (msg) => {
 bot.on("callback_query", async (query) => {
   const data   = query.data;
   const chatId = query.message.chat.id;
-  const msgId  = query.message.message_id;
 
   await bot.answerCallbackQuery(query.id);
 
@@ -323,8 +327,6 @@ bot.on("callback_query", async (query) => {
   }
 
   if (data === "token_info") {
-    bot.emit("text", { chat: { id: chatId }, text: "/info" }, ["/info"]);
-    bot.onText(/\/info/, () => {}); // trigger
     await bot.sendMessage(chatId,
 `💎 *RMAD Token Info*
 ━━━━━━━━━━━━━━━━━━━━
