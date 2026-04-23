@@ -18,11 +18,11 @@ import DailyClaimPanel from "./components/DailyClaimPanel";
 import RafflePanel     from "./components/RafflePanel";
 
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
-const RMAD_PAIR  = "0xb5cb9f4eccbeae6f95c9222aa12c319ff362a5a3";
+const RMAD_PAIR  = "0x754704bc059f8c67012fed69bc8a327a5aafb603"; // ✅ FIXED: correct RMAD/WMON pair
 const RMAD_ADDR  = "0x9a440Afaa434cDd19234e58798DeFA0E71be0A67";
 const WMON_ADDR  = "0x2cE8C8F4961a54B2e87585f4178467006B76B418";
 const DAPP_URL   = "https://6e82f368.rocketmoonad.pages.dev";
-const DEX_URL    = `https://dexscreener.com/monad/${RMAD_PAIR}`;
+const DEX_URL    = `https://dexscreener.com/monad/${RMAD_PAIR}`; // ✅ FIXED: now points to correct pair
 const MONAD_RPCS = ["https://rpc.monad.xyz", "https://monad.drpc.org"];
 const DS_API     = "https://api.dexscreener.com/latest/dex/pairs/monad";
 
