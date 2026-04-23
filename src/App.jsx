@@ -24,6 +24,7 @@ const WMON_ADDR  = "0x2cE8C8F4961a54B2e87585f4178467006B76B418";
 const DAPP_URL   = "https://6e82f368.rocketmoonad.pages.dev";
 const DEX_URL    = `https://dexscreener.com/monad/${RMAD_PAIR}`;
 const MONAD_RPCS = ["https://rpc.monad.xyz", "https://monad.drpc.org"];
+const DS_API     = "https://api.dexscreener.com/latest/dex/pairs/monad";
 
 // ─── EUROSPACE DEX PAIRS ─────────────────────────────────────────────────────
 const DEX_PAIRS = [
@@ -46,7 +47,7 @@ const DEX_PAIRS = [
   { symbol:"mCRO",   name:"Meta Cronos",    color:"#60a5fa", img:"", pair:"0x7D9e8050Ba0c0a6c8336A49a5Af6748AA6BD855C" },
 ];
 
-// ─── ON-CHAIN HELPERS ─────────────────────────────────────────────────────────
+// ─── ON-CHAIN RPC HELPERS (for RMAD main price) ───────────────────────────────
 async function rpcFetch(method, params) {
   for (const rpc of MONAD_RPCS) {
     const ctrl = new AbortController();
@@ -77,33 +78,68 @@ async function fetchPairReserves(pairAddr) {
   } catch (_) { return null; }
 }
 
-// Fetch token0 address from a pair contract (cached externally)
 async function fetchToken0(pairAddr) {
   try {
-    // token0() selector: 0x0dfe1681
     const res = await rpcFetch("eth_call", [{ to: pairAddr, data: "0x0dfe1681" }, "latest"]);
     if (!res || res === "0x" || res.length < 66) return null;
     return ("0x" + res.slice(26)).toLowerCase();
   } catch (_) { return null; }
 }
 
-// Correct RMAD price: WMON per RMAD
 function calcRmadPrice(r0, r1, token0Addr) {
   const rmadIsToken0 = token0Addr
     ? token0Addr === RMAD_ADDR.toLowerCase()
     : RMAD_ADDR.toLowerCase() < WMON_ADDR.toLowerCase();
-  if (rmadIsToken0) return Number((r1 * 1_000_000_000n) / r0) / 1_000_000_000;
-  return Number((r0 * 1_000_000_000n) / r1) / 1_000_000_000;
+  if (rmadIsToken0) return Number((r1 * 1_000_000_000_000n) / r0) / 1_000_000_000_000;
+  return Number((r0 * 1_000_000_000_000n) / r1) / 1_000_000_000_000;
+}
+
+// ─── DEXSCREENER API — batch fetch all pairs ──────────────────────────────────
+async function fetchDexScreenerPairs(pairAddresses) {
+  try {
+    // DS API accepts up to 30 comma-separated addresses per request
+    const CHUNK = 30;
+    const results = {};
+    for (let i = 0; i < pairAddresses.length; i += CHUNK) {
+      const chunk = pairAddresses.slice(i, i + CHUNK);
+      const url   = `${DS_API}/${chunk.join(",")}`;
+      const r = await fetch(url, {
+        headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!r.ok) continue;
+      const d = await r.json();
+      if (!Array.isArray(d.pairs)) continue;
+      for (const p of d.pairs) {
+        const addr = p.pairAddress?.toLowerCase();
+        if (!addr) continue;
+        results[addr] = {
+          priceNative : parseFloat(p.priceNative) || 0,
+          priceUsd    : parseFloat(p.priceUsd)    || 0,
+          change24h   : p.priceChange?.h24  ?? null,
+          change1h    : p.priceChange?.h1   ?? null,
+          volume24h   : p.volume?.h24       ?? 0,
+          liquidity   : p.liquidity?.usd    ?? 0,
+          baseSymbol  : p.baseToken?.symbol ?? "",
+          quoteSymbol : p.quoteToken?.symbol ?? "",
+        };
+      }
+    }
+    return results;
+  } catch (e) {
+    console.error("DexScreener API error:", e);
+    return {};
+  }
 }
 
 // ─── AD BANNER ───────────────────────────────────────────────────────────────
 const RMAD_AD_LINKS = [
-  { label: "Telegram",    sub: "@Rocket_Moonad_bot", url: "https://t.me/Rocket_Moonad_bot",                                                       color: "#00c8ff" },
-  { label: "Discord",     sub: "Join Server",         url: "https://discord.com/channels/1316093079090106472",                                     color: "#5865f2" },
-  { label: "Twitter / X", sub: "@bnbgold277983",      url: "https://twitter.com/bnbgold277983",                                                   color: "#e0e0ff" },
-  { label: "MonadVision", sub: "RMAD Holders",        url: "https://monadvision.com/token/0x9a440Afaa434cDd19234e58798DeFA0E71be0A67?tab=Holders", color: "#836ef9" },
-  { label: "DexScreener", sub: "RMAD/WMON Pair",      url: DEX_URL,                                                                               color: "#00FF88" },
-  { label: "Moon Rockets",sub: "Season 1 · Monad",    url: DAPP_URL,                                                                              color: "#a78bfa" },
+  { label:"Telegram",    sub:"@Rocket_Moonad_bot", url:"https://t.me/Rocket_Moonad_bot",                                                       color:"#00c8ff" },
+  { label:"Discord",     sub:"Join Server",         url:"https://discord.com/channels/1316093079090106472",                                     color:"#5865f2" },
+  { label:"Twitter / X", sub:"@bnbgold277983",      url:"https://twitter.com/bnbgold277983",                                                   color:"#e0e0ff" },
+  { label:"MonadVision", sub:"RMAD Holders",        url:"https://monadvision.com/token/0x9a440Afaa434cDd19234e58798DeFA0E71be0A67?tab=Holders", color:"#836ef9" },
+  { label:"DexScreener", sub:"RMAD/WMON Pair",      url:DEX_URL,                                                                               color:"#00FF88" },
+  { label:"Moon Rockets",sub:"Season 1 · Monad",    url:DAPP_URL,                                                                              color:"#a78bfa" },
 ];
 
 function AdBanner() {
@@ -124,41 +160,38 @@ function AdBanner() {
     return () => cancelAnimationFrame(rafRef.current);
   }, []);
   return (
-    <div style={{ width: "100%", background: "rgba(4,4,12,0.98)", overflow: "hidden" }}>
-      <div style={{ height: 2, background: "linear-gradient(90deg,#836ef9,#00c8ff,#00FF88,#5865f2,#836ef9)", backgroundSize: "300% 100%", animation: "bannerGlow 4s linear infinite" }} />
-      <div style={{ overflow: "hidden", padding: "7px 0" }}>
-        <div ref={trackRef} style={{ display: "flex", alignItems: "center", whiteSpace: "nowrap", willChange: "transform" }}>
+    <div style={{ width:"100%", background:"rgba(4,4,12,0.98)", overflow:"hidden" }}>
+      <div style={{ height:2, background:"linear-gradient(90deg,#836ef9,#00c8ff,#00FF88,#5865f2,#836ef9)", backgroundSize:"300% 100%", animation:"bannerGlow 4s linear infinite" }} />
+      <div style={{ overflow:"hidden", padding:"7px 0" }}>
+        <div ref={trackRef} style={{ display:"flex", alignItems:"center", whiteSpace:"nowrap", willChange:"transform" }}>
           {RMAD_AD_LINKS.map((item, i) => (
             <a key={i} href={item.url} target="_blank" rel="noreferrer"
-              style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "6px 32px", textDecoration: "none", borderRight: "1px solid rgba(131,110,249,0.1)", transition: "background 0.25s" }}
+              style={{ display:"inline-flex", alignItems:"center", gap:10, padding:"6px 32px", textDecoration:"none", borderRight:"1px solid rgba(131,110,249,0.1)", transition:"background 0.25s" }}
               onMouseEnter={e => { e.currentTarget.style.background = item.color + "14"; }}
               onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
-              <span style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                <span style={{ fontSize: 11, fontWeight: 800, color: item.color, letterSpacing: 1, fontFamily: "monospace", textTransform: "uppercase", textShadow: `0 0 8px ${item.color}` }}>{item.label}</span>
-                <span style={{ fontSize: 9, color: "#444", letterSpacing: .5, fontFamily: "monospace" }}>{item.sub}</span>
+              <span style={{ display:"flex", flexDirection:"column", gap:1 }}>
+                <span style={{ fontSize:11, fontWeight:800, color:item.color, letterSpacing:1, fontFamily:"monospace", textTransform:"uppercase", textShadow:`0 0 8px ${item.color}` }}>{item.label}</span>
+                <span style={{ fontSize:9, color:"#444", letterSpacing:.5, fontFamily:"monospace" }}>{item.sub}</span>
               </span>
             </a>
           ))}
         </div>
       </div>
-      <div style={{ height: 2, background: "linear-gradient(90deg,#5865f2,#00FF88,#00c8ff,#836ef9)", backgroundSize: "300% 100%", animation: "bannerGlow 4s linear infinite reverse" }} />
+      <div style={{ height:2, background:"linear-gradient(90deg,#5865f2,#00FF88,#00c8ff,#836ef9)", backgroundSize:"300% 100%", animation:"bannerGlow 4s linear infinite reverse" }} />
     </div>
   );
 }
 
-// ─── LIVE DEX PRICE HOOK (RMAD) — FIXED ──────────────────────────────────────
+// ─── LIVE RMAD PRICE HOOK (on-chain) ─────────────────────────────────────────
 function useLiveDexPrice() {
   const [dexPrice,   setDexPrice]   = useState(null);
   const [dexChange,  setDexChange]  = useState(null);
   const [dexLoading, setDexLoading] = useState(true);
-  const prevRef    = useRef(null);
-  const token0Ref  = useRef(null); // cache token0 address
+  const prevRef   = useRef(null);
+  const token0Ref = useRef(null);
 
   async function load() {
-    // Fetch token0 once and cache it
-    if (!token0Ref.current) {
-      token0Ref.current = await fetchToken0(RMAD_PAIR);
-    }
+    if (!token0Ref.current) token0Ref.current = await fetchToken0(RMAD_PAIR);
     const data = await fetchPairReserves(RMAD_PAIR);
     if (!data) { setDexLoading(false); return; }
     const price = calcRmadPrice(data.r0, data.r1, token0Ref.current);
@@ -172,45 +205,43 @@ function useLiveDexPrice() {
   return { dexPrice, dexChange, dexLoading };
 }
 
-// ─── DEX PRICES HOOK (17 EUROSPACE PAIRS) — FIXED ────────────────────────────
+// ─── DEX PAIRS PRICES HOOK (DexScreener API) ─────────────────────────────────
 function useDexPrices() {
-  const [prices, setPrices] = useState({});
-  const token0Cache = useRef({}); // { pairAddr: token0Addr }
-
-  async function getToken0(pairAddr) {
-    if (token0Cache.current[pairAddr]) return token0Cache.current[pairAddr];
-    const addr = await fetchToken0(pairAddr);
-    if (addr) token0Cache.current[pairAddr] = addr;
-    return addr;
-  }
+  const [prices,  setPrices]  = useState({});
+  const [loading, setLoading] = useState(true);
 
   async function load() {
-    const WMON = WMON_ADDR.toLowerCase();
-    const results = {};
-
-    await Promise.all(DEX_PAIRS.map(async p => {
-      const [reserves, token0] = await Promise.all([
-        fetchPairReserves(p.pair),
-        getToken0(p.pair),
-      ]);
-      if (!reserves || !token0) return;
-
-      const { r0, r1 } = reserves;
-      // We want: price of the meta token expressed in WMON
-      // If WMON is token0: metaToken is token1 → price = r0 / r1 (WMON per meta)
-      // If WMON is token1: metaToken is token0 → price = r1 / r0 (WMON per meta)
-      const price = token0 === WMON
-        ? Number((r0 * 1_000_000_000n) / r1) / 1_000_000_000
-        : Number((r1 * 1_000_000_000n) / r0) / 1_000_000_000;
-
-      results[p.pair] = { price, updatedAt: Date.now() };
-    }));
-
-    setPrices(results);
+    const data = await fetchDexScreenerPairs(DEX_PAIRS.map(p => p.pair));
+    setPrices(data);
+    setLoading(false);
   }
 
   useEffect(() => { load(); const id = setInterval(load, 30000); return () => clearInterval(id); }, []);
-  return prices;
+  return { prices, loading };
+}
+
+// ─── PRICE FORMATTER ─────────────────────────────────────────────────────────
+function fmtNative(n) {
+  if (!n || n === 0) return "—";
+  if (n < 0.000001)  return n.toExponential(4);
+  if (n < 0.001)     return n.toFixed(8);
+  if (n < 1)         return n.toFixed(6);
+  return n.toFixed(4);
+}
+
+function fmtUsd(u) {
+  if (!u || u === 0) return null;
+  if (u < 0.000001)  return "$" + u.toExponential(2);
+  if (u < 0.01)      return "$" + u.toFixed(6);
+  if (u < 1)         return "$" + u.toFixed(4);
+  return "$" + u.toFixed(2);
+}
+
+function fmtVolLiq(v) {
+  if (!v || v === 0) return null;
+  if (v >= 1_000_000) return "$" + (v / 1_000_000).toFixed(1) + "M";
+  if (v >= 1_000)     return "$" + (v / 1_000).toFixed(1) + "k";
+  return "$" + v.toFixed(0);
 }
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
@@ -219,13 +250,13 @@ function Dashboard() {
   const { mutateAsync: sendTx, isPending } = useSendTransaction();
   const { price, change, loading: priceLoading } = useToken();
   const { dexPrice, dexChange, dexLoading } = useLiveDexPrice();
-  const dexPrices = useDexPrices();
+  const { prices: dexPrices, loading: dexPairsLoading } = useDexPrices();
   const { stakedIds, pending, stake, unstake, claimRewards } = useStaking(account, sendTx);
 
-  const [filter,      setFilter]      = useState("all");
-  const [tab,         setTab]         = useState("staking");
-  const [dexFilter,   setDexFilter]   = useState("all");
-  const [selectedPair,setSelectedPair]= useState(null);
+  const [filter,       setFilter]      = useState("all");
+  const [tab,          setTab]         = useState("staking");
+  const [dexFilter,    setDexFilter]   = useState("all");
+  const [selectedPair, setSelectedPair]= useState(null);
 
   const nftsWithState = NFTS.map(n => ({ ...n, staked: stakedIds.includes(n.id.toString()) }));
   const filtered =
@@ -234,40 +265,42 @@ function Dashboard() {
     : nftsWithState;
 
   const toggleNft = (id) => stakedIds.includes(id.toString()) ? unstake(id) : stake([id]);
-  const fmtChange = (c) => c !== null ? `${c > 0 ? "▲" : "▼"} ${Math.abs(c).toFixed(2)}%` : null;
 
   const filteredDex = dexFilter === "all" ? DEX_PAIRS : DEX_PAIRS.filter(p =>
     dexFilter === "stable" ? ["mUSDC","mUSDT"].includes(p.symbol)
-    : dexFilter === "euro"   ? ["EURO","mEURO","mEURC"].includes(p.symbol)
+    : dexFilter === "euro" ? ["EURO","mEURO","mEURC"].includes(p.symbol)
     : !["mUSDC","mUSDT","EURO","mEURO","mEURC"].includes(p.symbol)
   );
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg-deep)", fontFamily: "var(--font-ui)", color: "var(--text-secondary)" }}>
+    <div style={{ minHeight:"100vh", background:"var(--bg-deep)", fontFamily:"var(--font-ui)", color:"var(--text-secondary)" }}>
       <style>{`
         @keyframes bannerGlow { 0%{background-position:0% 0%} 100%{background-position:300% 0%} }
-        @keyframes pricePulse  { 0%,100%{opacity:1} 50%{opacity:0.6} }
-        .tab-btn { padding:8px 16px; border-radius:8px; border:0.5px solid #222; background:transparent; color:#555; font-size:11px; cursor:pointer; transition:all .2s; font-family:inherit; }
+        @keyframes pricePulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+        @keyframes spin        { to{transform:rotate(360deg)} }
+        .tab-btn  { padding:8px 16px; border-radius:8px; border:0.5px solid #222; background:transparent; color:#555; font-size:11px; cursor:pointer; transition:all .2s; font-family:inherit; }
         .tab-btn.active { background:#00FF8815; border-color:#00FF88; color:#00FF88; font-weight:600; }
         .dex-card { background:var(--bg-panel); border:0.5px solid #1a1a1a; border-left:3px solid transparent; border-radius:12px; padding:10px 14px; display:flex; align-items:center; gap:10px; cursor:pointer; transition:all .2s; }
         .dex-card:hover { transform:translateX(3px); border-color:#333 !important; }
-        .dex-dot { width:6px; height:6px; border-radius:50%; background:#00FF88; animation:pricePulse 2s infinite; flex-shrink:0; }
+        .dex-dot  { width:6px; height:6px; border-radius:50%; background:#00FF88; animation:pricePulse 2s infinite; flex-shrink:0; }
         .dex-dot.offline { background:#444; animation:none; }
-        .flt-btn { padding:5px 12px; border-radius:6px; border:0.5px solid #222; background:transparent; color:#555; font-size:10px; cursor:pointer; transition:all .2s; font-family:inherit; }
+        .flt-btn  { padding:5px 12px; border-radius:6px; border:0.5px solid #222; background:transparent; color:#555; font-size:10px; cursor:pointer; transition:all .2s; font-family:inherit; }
         .flt-btn.active { border-color:#836ef9; color:#836ef9; background:rgba(131,110,249,.1); }
+        .chg-up   { color:#00FF88; font-size:9px; font-family:monospace; }
+        .chg-down { color:#ff4444; font-size:9px; font-family:monospace; }
       `}</style>
 
       <AdBanner />
 
-      <div style={{ padding: "20px 20px 80px" }}>
+      <div style={{ padding:"20px 20px 80px" }}>
 
         {/* HEADER */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"16px" }}>
           <div>
-            <div style={{ fontSize: "26px", fontWeight: "700", color: "var(--text-primary)" }}>
-              Rocket<span style={{ color: "var(--green)" }}>Moonad</span>
+            <div style={{ fontSize:"26px", fontWeight:"700", color:"var(--text-primary)" }}>
+              Rocket<span style={{ color:"var(--green)" }}>Moonad</span>
             </div>
-            <div style={{ fontSize: "10px", color: "#444", letterSpacing: "2px", textTransform: "uppercase", marginTop: "2px" }}>
+            <div style={{ fontSize:"10px", color:"#444", letterSpacing:"2px", textTransform:"uppercase", marginTop:"2px" }}>
               Moon Rockets Season 1 · Monad Mainnet
             </div>
           </div>
@@ -275,52 +308,55 @@ function Dashboard() {
         </div>
 
         {/* CONTRACT PILLS */}
-        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "12px" }}>
+        <div style={{ display:"flex", gap:"8px", flexWrap:"wrap", marginBottom:"12px" }}>
           {CONTRACTS_LIST.map(({ label, addr }) => (
-            <div key={addr} style={{ background: "var(--bg-panel)", border: "0.5px solid var(--border-subtle)", borderRadius: "8px", padding: "6px 10px" }}>
-              <div style={{ fontSize: "9px", color: "#444", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "2px" }}>{label}</div>
-              <div style={{ fontSize: "10px", color: "#666", fontFamily: "var(--font-mono)" }}>{addr.slice(0,6)}…{addr.slice(-4)}</div>
+            <div key={addr} style={{ background:"var(--bg-panel)", border:"0.5px solid var(--border-subtle)", borderRadius:"8px", padding:"6px 10px" }}>
+              <div style={{ fontSize:"9px", color:"#444", textTransform:"uppercase", letterSpacing:"1px", marginBottom:"2px" }}>{label}</div>
+              <div style={{ fontSize:"10px", color:"#666", fontFamily:"var(--font-mono)" }}>{addr.slice(0,6)}…{addr.slice(-4)}</div>
             </div>
           ))}
         </div>
 
         {/* PRICE BAR */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "14px" }}>
-          {/* On-chain price */}
-          <div style={{ flex: 1, minWidth: 180, display: "flex", alignItems: "center", gap: "10px", background: "var(--bg-panel)", border: "0.5px solid var(--green-dim)", borderRadius: "10px", padding: "10px 14px" }}>
-            <div>
-              <div style={{ fontSize: "9px", color: "#444", letterSpacing: "1px", textTransform: "uppercase", marginBottom: "2px" }}>RMAD / WMON · On-Chain</div>
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <span style={{ fontSize: "15px", fontWeight: "700", color: "var(--green)", fontFamily: "var(--font-mono)", animation: dexLoading ? "pricePulse 1.5s infinite" : "none" }}>
+        <div style={{ display:"flex", flexWrap:"wrap", gap:"8px", marginBottom:"14px" }}>
+          <div style={{ flex:1, minWidth:180, display:"flex", alignItems:"center", gap:"10px", background:"var(--bg-panel)", border:"0.5px solid var(--green-dim)", borderRadius:"10px", padding:"10px 14px" }}>
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:"9px", color:"#444", letterSpacing:"1px", textTransform:"uppercase", marginBottom:"2px" }}>RMAD / WMON · On-Chain</div>
+              <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
+                <span style={{ fontSize:"15px", fontWeight:"700", color:"var(--green)", fontFamily:"var(--font-mono)", animation:dexLoading?"pricePulse 1.5s infinite":"none" }}>
                   {dexLoading ? "Loading…" : dexPrice !== null ? dexPrice.toFixed(10) + " WMON" : "No liquidity"}
                 </span>
-                {dexChange !== null && <span style={{ color: dexChange > 0 ? "var(--green)" : "var(--red)", fontSize: "11px" }}>{fmtChange(dexChange)}</span>}
+                {dexChange !== null && (
+                  <span className={dexChange > 0 ? "chg-up" : "chg-down"} style={{ fontSize:"11px" }}>
+                    {dexChange > 0 ? "▲" : "▼"} {Math.abs(dexChange).toFixed(2)}%
+                  </span>
+                )}
               </div>
             </div>
-            <a href={DEX_URL} target="_blank" rel="noreferrer" style={{ marginLeft: "auto", fontSize: "10px", color: "#00FF88", border: "0.5px solid #00FF8844", borderRadius: "6px", padding: "3px 8px", textDecoration: "none" }}>📊</a>
-            <span style={{ fontSize: "9px", color: "#333" }}>↻30s</span>
+            <a href={DEX_URL} target="_blank" rel="noreferrer" style={{ fontSize:"10px", color:"#00FF88", border:"0.5px solid #00FF8844", borderRadius:"6px", padding:"3px 8px", textDecoration:"none" }}>📊</a>
+            <span style={{ fontSize:"9px", color:"#333" }}>↻30s</span>
           </div>
-          {/* DexScreener USD */}
-          <div style={{ flex: 1, minWidth: 180, display: "flex", alignItems: "center", gap: "10px", background: "var(--bg-panel)", border: "0.5px solid var(--green-dim)", borderRadius: "10px", padding: "10px 14px" }}>
-            <div>
-              <div style={{ fontSize: "9px", color: "#444", letterSpacing: "1px", textTransform: "uppercase", marginBottom: "2px" }}>RMAD / USD · DexScreener</div>
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <span style={{ fontSize: "15px", fontWeight: "700", color: "var(--green)", fontFamily: "var(--font-mono)" }}>
+          <div style={{ flex:1, minWidth:180, display:"flex", alignItems:"center", gap:"10px", background:"var(--bg-panel)", border:"0.5px solid var(--green-dim)", borderRadius:"10px", padding:"10px 14px" }}>
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:"9px", color:"#444", letterSpacing:"1px", textTransform:"uppercase", marginBottom:"2px" }}>RMAD / USD · DexScreener</div>
+              <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
+                <span style={{ fontSize:"15px", fontWeight:"700", color:"var(--green)", fontFamily:"var(--font-mono)" }}>
                   {priceLoading ? "Loading…" : price || "—"}
                 </span>
-                {change !== null && <span style={{ color: change > 0 ? "var(--green)" : "var(--red)", fontSize: "11px" }}>{change > 0 ? "▲" : "▼"} {Math.abs(change).toFixed(2)}%</span>}
+                {change !== null && (
+                  <span className={change > 0 ? "chg-up" : "chg-down"} style={{ fontSize:"11px" }}>
+                    {change > 0 ? "▲" : "▼"} {Math.abs(change).toFixed(2)}%
+                  </span>
+                )}
               </div>
             </div>
-            <span style={{ fontSize: "9px", color: "#333", marginLeft: "auto" }}>↻30s</span>
+            <span style={{ fontSize:"9px", color:"#333" }}>↻30s</span>
           </div>
         </div>
 
         {/* TABS */}
-        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "16px" }}>
-          {[
-            { id: "staking", label: "🚀 Staking" },
-            { id: "dex",     label: "📊 DEX Live" },
-          ].map(t => (
+        <div style={{ display:"flex", gap:"6px", flexWrap:"wrap", marginBottom:"16px" }}>
+          {[{ id:"staking", label:"🚀 Staking" }, { id:"dex", label:"📊 DEX Live" }].map(t => (
             <button key={t.id} className={`tab-btn ${tab === t.id ? "active" : ""}`} onClick={() => setTab(t.id)}>{t.label}</button>
           ))}
         </div>
@@ -328,23 +364,23 @@ function Dashboard() {
         {/* ══ STAKING TAB ══ */}
         {tab === "staking" && <>
           {!account && (
-            <motion.p style={{ color: "var(--green)", textAlign: "center", fontSize: "20px", marginTop: "80px", textShadow: "0 0 20px #00FF88" }}
-              animate={{ opacity: [0.5, 1, 0.5] }} transition={{ repeat: Infinity, duration: 2 }}>
+            <motion.p style={{ color:"var(--green)", textAlign:"center", fontSize:"20px", marginTop:"80px", textShadow:"0 0 20px #00FF88" }}
+              animate={{ opacity:[0.5,1,0.5] }} transition={{ repeat:Infinity, duration:2 }}>
               Connect your wallet to start staking
             </motion.p>
           )}
           {account && (
             <>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "10px", marginBottom: "14px" }}>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"10px", marginBottom:"14px" }}>
                 {[
-                  { label: "Total NFTs",      value: NFTS.length },
-                  { label: "Staked",          value: stakedIds.length,              green: true },
-                  { label: "Pending Rewards", value: `${pending} RMAD`,             green: true },
-                  { label: "Unstaked",        value: NFTS.length - stakedIds.length },
+                  { label:"Total NFTs",      value:NFTS.length },
+                  { label:"Staked",          value:stakedIds.length,               green:true },
+                  { label:"Pending Rewards", value:`${pending} RMAD`,              green:true },
+                  { label:"Unstaked",        value:NFTS.length - stakedIds.length },
                 ].map(({ label, value, green }) => (
-                  <div key={label} style={{ background: "var(--bg-panel)", borderRadius: "10px", padding: "14px" }}>
-                    <div style={{ fontSize: "11px", color: "#444", marginBottom: "6px" }}>{label}</div>
-                    <div style={{ fontSize: "20px", fontWeight: "700", color: green ? "var(--green)" : "var(--text-primary)" }}>{value}</div>
+                  <div key={label} style={{ background:"var(--bg-panel)", borderRadius:"10px", padding:"14px" }}>
+                    <div style={{ fontSize:"11px", color:"#444", marginBottom:"6px" }}>{label}</div>
+                    <div style={{ fontSize:"20px", fontWeight:"700", color:green ? "var(--green)" : "var(--text-primary)" }}>{value}</div>
                   </div>
                 ))}
               </div>
@@ -352,41 +388,50 @@ function Dashboard() {
               <DailyClaimPanel account={account} sendTx={sendTx} />
               <RafflePanel account={account} sendTx={sendTx} />
 
-              <div style={{ marginBottom: "16px" }}>
-                <div style={{ background: "var(--bg-panel)", border: "0.5px solid var(--green-dim)", borderRadius: "12px", padding: "16px" }}>
-                  <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "10px" }}>Claim staking rewards</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
+              <div style={{ marginBottom:"16px" }}>
+                <div style={{ background:"var(--bg-panel)", border:"0.5px solid var(--green-dim)", borderRadius:"12px", padding:"16px" }}>
+                  <div style={{ fontSize:"13px", fontWeight:"600", color:"var(--text-primary)", marginBottom:"10px" }}>Claim staking rewards</div>
+                  <div style={{ display:"flex", alignItems:"center", gap:"20px" }}>
                     <div>
-                      <div style={{ fontSize: "28px", fontWeight: "700", color: "var(--green)", fontFamily: "var(--font-mono)" }}>{pending}</div>
-                      <div style={{ fontSize: "11px", color: "#444" }}>RMAD</div>
+                      <div style={{ fontSize:"28px", fontWeight:"700", color:"var(--green)", fontFamily:"var(--font-mono)" }}>{pending}</div>
+                      <div style={{ fontSize:"11px", color:"#444" }}>RMAD</div>
                     </div>
                     <NeonButton onClick={claimRewards} disabled={isPending}>{isPending ? "…" : "Claim"}</NeonButton>
                   </div>
                 </div>
               </div>
 
-              <div style={{ background: "var(--bg-panel)", border: "0.5px solid var(--border-subtle)", borderRadius: "14px", padding: "18px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "10px" }}>
-                  <span style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-primary)" }}>Your NFTs ({filtered.length})</span>
-                  <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
-                    {["all", "staked", "unstaked"].map(f => (
+              <div style={{ background:"var(--bg-panel)", border:"0.5px solid var(--border-subtle)", borderRadius:"14px", padding:"18px" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"16px", flexWrap:"wrap", gap:"10px" }}>
+                  <span style={{ fontSize:"15px", fontWeight:"700", color:"var(--text-primary)" }}>Your NFTs ({filtered.length})</span>
+                  <div style={{ display:"flex", gap:"8px", alignItems:"center", flexWrap:"wrap" }}>
+                    {["all","staked","unstaked"].map(f => (
                       <button key={f} onClick={() => setFilter(f)} style={{
                         background: filter === f ? "#00FF8822" : "transparent",
                         border: `0.5px solid ${filter === f ? "#00FF88" : "#333"}`,
                         color: filter === f ? "#00FF88" : "#555",
-                        padding: "5px 12px", borderRadius: "6px", fontSize: "11px",
-                        cursor: "pointer", textTransform: "capitalize",
-                        fontWeight: filter === f ? "600" : "400", fontFamily: "inherit",
+                        padding:"5px 12px", borderRadius:"6px", fontSize:"11px",
+                        cursor:"pointer", textTransform:"capitalize",
+                        fontWeight: filter === f ? "600" : "400", fontFamily:"inherit",
                       }}>{f}</button>
                     ))}
                     <NeonButton small onClick={() => stake(nftsWithState.filter(n => !n.staked).map(n => n.id))} disabled={isPending}>Stake all</NeonButton>
                     <NeonButton small gray onClick={() => nftsWithState.filter(n => n.staked).forEach(n => unstake(n.id))} disabled={isPending}>Unstake all</NeonButton>
                   </div>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: "14px" }}>
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))", gap:"14px" }}>
                   <AnimatePresence>
                     {filtered.map(n => (
-                      <NftCard key={n.id} nft={n} staked={n.staked} price={dexPrice ? dexPrice.toFixed(10) + " WMON" : price} change={dexChange ?? change} priceLoading={dexLoading} onToggle={toggleNft} isPending={isPending} />
+                      <NftCard
+                        key={n.id}
+                        nft={n}
+                        staked={n.staked}
+                        price={dexPrice ? dexPrice.toFixed(10) + " WMON" : price}
+                        change={dexChange ?? change}
+                        priceLoading={dexLoading}
+                        onToggle={toggleNft}
+                        isPending={isPending}
+                      />
                     ))}
                   </AnimatePresence>
                 </div>
@@ -398,46 +443,111 @@ function Dashboard() {
         {/* ══ DEX LIVE TAB ══ */}
         {tab === "dex" && (
           <div>
-            <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "12px" }}>
-              📊 DEX Live · {DEX_PAIRS.length} Pairs · Monad On-Chain
+            {/* Header row */}
+            <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"12px", flexWrap:"wrap" }}>
+              <span style={{ fontSize:"13px", fontWeight:"600", color:"var(--text-primary)" }}>
+                📊 DEX Live · {DEX_PAIRS.length} Pairs · EUROSPACE on Monad
+              </span>
+              {dexPairsLoading
+                ? <span style={{ fontSize:"10px", color:"#555" }}><span style={{ display:"inline-block", animation:"spin 1s linear infinite" }}>⟳</span> Loading…</span>
+                : <span style={{ marginLeft:"auto", fontSize:"9px", color:"#444" }}>via DexScreener API · ↻30s</span>
+              }
             </div>
 
-            {/* Filter */}
-            <div style={{ display: "flex", gap: "6px", marginBottom: "14px", flexWrap: "wrap" }}>
-              {["all", "meta", "stable", "euro"].map(f => (
+            {/* Filters */}
+            <div style={{ display:"flex", gap:"6px", marginBottom:"14px", flexWrap:"wrap" }}>
+              {["all","meta","stable","euro"].map(f => (
                 <button key={f} className={`flt-btn ${dexFilter === f ? "active" : ""}`} onClick={() => setDexFilter(f)}>
                   {f.toUpperCase()}
                 </button>
               ))}
             </div>
 
-            {/* Pair list */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: "8px" }}>
+            {/* Pair cards */}
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))", gap:"8px" }}>
               {filteredDex.map(p => {
-                const pd = dexPrices[p.pair];
-                const hasPrice = !!pd;
+                const key      = p.pair.toLowerCase();
+                const pd       = dexPrices[key];
+                const hasPrice = pd && pd.priceNative > 0;
+                const ch24     = pd?.change24h ?? null;
+                const ch1h     = pd?.change1h  ?? null;
+                const volFmt   = fmtVolLiq(pd?.volume24h);
+                const liqFmt   = fmtVolLiq(pd?.liquidity);
+                const usdFmt   = fmtUsd(pd?.priceUsd);
+
                 return (
-                  <div key={p.pair} className="dex-card" style={{ borderLeftColor: p.color }}
-                    onClick={() => setSelectedPair(selectedPair === p.pair ? null : p.pair)}>
+                  <div
+                    key={p.pair}
+                    className="dex-card"
+                    style={{ borderLeftColor:p.color }}
+                    onClick={() => setSelectedPair(selectedPair === p.pair ? null : p.pair)}
+                  >
+                    {/* Live dot */}
                     <div className={`dex-dot ${hasPrice ? "" : "offline"}`} />
-                    {/* Token icon or colored circle */}
-                    <div style={{ width: 36, height: 36, borderRadius: "50%", background: p.color + "22", border: `2px solid ${p.color}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 11, fontWeight: 700, color: p.color, fontFamily: "monospace" }}>
-                      {p.symbol.slice(0, 3)}
+
+                    {/* Token circle */}
+                    <div style={{ width:36, height:36, borderRadius:"50%", background:p.color+"22", border:`2px solid ${p.color}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:10, fontWeight:700, color:p.color, fontFamily:"monospace" }}>
+                      {p.symbol.slice(0,3)}
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: "12px", fontWeight: "700", color: p.color, letterSpacing: "0.5px" }}>{p.symbol}</div>
-                      <div style={{ fontSize: "10px", color: "#444", marginTop: "1px" }}>{p.name}</div>
-                      <div style={{ display: "flex", gap: "6px", marginTop: "5px" }}>
-                        <a href={`https://dexscreener.com/monad/${p.pair}`} target="_blank" rel="noreferrer"
-                          style={{ fontSize: "9px", padding: "2px 8px", border: "0.5px solid #00FF8844", borderRadius: "4px", color: "#00FF88", textDecoration: "none" }}
-                          onClick={e => e.stopPropagation()}>📊 Chart</a>
+
+                    {/* Middle info */}
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:"12px", fontWeight:"700", color:p.color, letterSpacing:"0.5px" }}>{p.symbol}</div>
+                      <div style={{ fontSize:"10px", color:"#444", marginTop:"1px" }}>{p.name}</div>
+
+                      {/* Changes */}
+                      {(ch24 !== null || ch1h !== null) && (
+                        <div style={{ display:"flex", gap:"6px", marginTop:"3px", flexWrap:"wrap" }}>
+                          {ch24 !== null && (
+                            <span className={Number(ch24) >= 0 ? "chg-up" : "chg-down"}>
+                              {Number(ch24) >= 0 ? "▲" : "▼"}{Math.abs(Number(ch24)).toFixed(2)}% 24h
+                            </span>
+                          )}
+                          {ch1h !== null && (
+                            <span className={Number(ch1h) >= 0 ? "chg-up" : "chg-down"}>
+                              {Number(ch1h) >= 0 ? "▲" : "▼"}{Math.abs(Number(ch1h)).toFixed(2)}% 1h
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Liq / Vol */}
+                      {(liqFmt || volFmt) && (
+                        <div style={{ display:"flex", gap:"8px", marginTop:"3px" }}>
+                          {liqFmt && <span style={{ fontSize:"9px", color:"#555" }}>💧{liqFmt}</span>}
+                          {volFmt && <span style={{ fontSize:"9px", color:"#555" }}>📊{volFmt}</span>}
+                        </div>
+                      )}
+
+                      {/* DexScreener link */}
+                      <div style={{ marginTop:"5px" }}>
+                        <a
+                          href={`https://dexscreener.com/monad/${p.pair}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ fontSize:"9px", padding:"2px 8px", border:"0.5px solid #00FF8844", borderRadius:"4px", color:"#00FF88", textDecoration:"none" }}
+                          onClick={e => e.stopPropagation()}
+                        >📊 Chart</a>
                       </div>
                     </div>
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{ fontSize: "11px", fontWeight: "700", color: hasPrice ? "#00e5ff" : "#333", fontFamily: "var(--font-mono)" }}>
-                        {hasPrice ? pd.price.toFixed(8) : "—"}
-                      </div>
-                      <div style={{ fontSize: "9px", color: "#444", marginTop: "2px" }}>WMON</div>
+
+                    {/* Price column */}
+                    <div style={{ textAlign:"right", minWidth:"82px", flexShrink:0 }}>
+                      {hasPrice ? (
+                        <>
+                          <div style={{ fontSize:"11px", fontWeight:"700", color:"#00e5ff", fontFamily:"var(--font-mono)" }}>
+                            {fmtNative(pd.priceNative)}
+                          </div>
+                          <div style={{ fontSize:"9px", color:"#555", marginTop:"1px" }}>WMON</div>
+                          {usdFmt && (
+                            <div style={{ fontSize:"9px", color:"#666", marginTop:"2px", fontFamily:"var(--font-mono)" }}>{usdFmt}</div>
+                          )}
+                        </>
+                      ) : (
+                        <div style={{ fontSize:"11px", color:"#333", fontFamily:"var(--font-mono)" }}>
+                          {dexPairsLoading ? "…" : "—"}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -446,21 +556,28 @@ function Dashboard() {
 
             {/* Embedded chart */}
             {selectedPair && (
-              <div style={{ marginTop: "16px", borderRadius: "12px", overflow: "hidden", border: "0.5px solid #1a1a1a" }}>
+              <div style={{ marginTop:"16px", borderRadius:"12px", overflow:"hidden", border:"0.5px solid #1a1a1a" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 12px", background:"#050510", borderBottom:"0.5px solid #111" }}>
+                  <span style={{ fontSize:"11px", color:"#555" }}>
+                    {DEX_PAIRS.find(p => p.pair === selectedPair)?.symbol} · {selectedPair.slice(0,8)}…
+                  </span>
+                  <button onClick={() => setSelectedPair(null)} style={{ background:"transparent", border:"none", color:"#555", cursor:"pointer", fontSize:"14px" }}>✕</button>
+                </div>
                 <iframe
                   src={`https://dexscreener.com/monad/${selectedPair}?embed=1&theme=dark&trades=0&info=0`}
-                  style={{ width: "100%", height: 380, border: "none", display: "block" }}
+                  style={{ width:"100%", height:400, border:"none", display:"block" }}
                   title="DEX Chart"
                 />
               </div>
             )}
 
-            <div style={{ marginTop: "14px", padding: "10px 14px", background: "var(--bg-panel)", borderRadius: "8px", fontSize: "10px", color: "#444", lineHeight: 1.8 }}>
-              ℹ️ Prices read live from on-chain reserves via <code style={{ color: "#836ef9" }}>getReserves()</code> every 30s. Token0 direction resolved via <code style={{ color: "#836ef9" }}>token0()</code> (cached). Click any pair to open embedded chart. Data from EUROSPACE DEX on Monad Mainnet.
+            <div style={{ marginTop:"14px", padding:"10px 14px", background:"var(--bg-panel)", borderRadius:"8px", fontSize:"10px", color:"#444", lineHeight:1.8 }}>
+              ℹ️ Prices fetched from <code style={{ color:"#836ef9" }}>api.dexscreener.com</code> every 30 s.
+              Shows WMON price, USD price, 24 h/1 h change, liquidity and volume.
+              Click any card to open embedded chart. EUROSPACE DEX · Monad Mainnet.
             </div>
           </div>
         )}
-
       </div>
     </div>
   );
