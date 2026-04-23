@@ -18,21 +18,21 @@ import DailyClaimPanel from "./components/DailyClaimPanel";
 import RafflePanel     from "./components/RafflePanel";
 
 // ─── CONTRACTS ────────────────────────────────────────────────────────────────
-const NFT_ADDR     = "0x45336C2E15F2fe58c67Ee4035a520231b2751669"; // NFT (ERC-721)
-const STAKING_ADDR = "0xec5773F31CA0F4012624392243E0B6517B518976"; // Staking
-const RMAD_ADDR    = "0x9a440Afaa434cDd19234e58798DeFA0E71be0A67"; // RMAD Token (ERC-20)
-const ORACLE_ADDR  = "0xEf98C35c95206527Bf2783fEf8f69Cfc12a3c2e1"; // Oracle (PriceFeed)
-const RAFFLE_ADDR  = "0xbcc94553Cb4facD17f209FDda4a54012Be616Cfc"; // Raffle
-const RMAD_PAIR    = "0x754704bc059f8c67012fed69bc8a327a5aafb603"; // RMAD/WMON LP Pair
-const WMON_ADDR    = "0x2cE8C8F4961a54B2e87585f4178467006B76B418"; // Wrapped MON
+const NFT_ADDR     = "0x45336C2E15F2fe58c67Ee4035a520231b2751669";
+const STAKING_ADDR = "0xec5773F31CA0F4012624392243E0B6517B518976";
+const RMAD_ADDR    = "0x9a440Afaa434cDd19234e58798DeFA0E71be0A67";
+const ORACLE_ADDR  = "0xEf98C35c95206527Bf2783fEf8f69Cfc12a3c2e1";
+const RAFFLE_ADDR  = "0xbcc94553Cb4facD17f209FDda4a54012Be616Cfc";
+const RMAD_PAIR    = "0x754704bc059f8c67012fed69bc8a327a5aafb603";
+const WMON_ADDR    = "0x2cE8C8F4961a54B2e87585f4178467006B76B418";
 
-const DAPP_URL   = "https://6e82f368.rocketmoonad.pages.dev";
-const DEX_URL    = `https://dexscreener.com/monad/${RMAD_PAIR}`;
-const MONAD_URL  = `https://monadvision.com/token/${RMAD_ADDR}?tab=Holders`;
-const DS_API     = "https://api.dexscreener.com/latest/dex/pairs/monad";
+const DAPP_URL  = "https://6e82f368.rocketmoonad.pages.dev";
+const DEX_URL   = `https://dexscreener.com/monad/${RMAD_PAIR}`;
+const MONAD_URL = `https://monadvision.com/token/${RMAD_ADDR}?tab=Holders`;
 const MONAD_RPCS = ["https://rpc.monad.xyz", "https://monad.drpc.org"];
 
 // ─── EUROSPACE DEX PAIRS ─────────────────────────────────────────────────────
+// FIX: mUSDT pair was 43 chars (had extra 'b8' at end) — corrected to 42 chars
 const DEX_PAIRS = [
   { symbol:"EURO",   name:"Meta EuroCoin",  color:"#00ff88", img:"https://files.catbox.moe/9o0wad.png", pair:"0x9E32FdD909a5BdcCfb874DEE72F24169AfE4eC02" },
   { symbol:"mBTC",   name:"Meta Bitcoin",   color:"#F7931A", img:"", pair:"0x47Dc73D3e1C520056AdF52349A6A282e5262D56d" },
@@ -41,7 +41,7 @@ const DEX_PAIRS = [
   { symbol:"mBNB",   name:"Meta BNB",       color:"#F3BA2F", img:"", pair:"0xd77B55A199EA0DC81EB4c7c36d45fBda4D6477B6" },
   { symbol:"mXRP",   name:"Meta XRP",       color:"#00AAE4", img:"", pair:"0x69884c6C8Fe6F833aEEDE2A4c0949e667C7F79fB" },
   { symbol:"mUSDC",  name:"Meta USDC",      color:"#2775CA", img:"", pair:"0x3BE5B19348d6Ccbc20e0DCF3Cab0aDF9e4643dCa" },
-  { symbol:"mUSDT",  name:"Meta Tether",    color:"#26A17B", img:"", pair:"0xAB4CFB051E73db47f75c4A2c31dFaAAFd3A82A8b8" },
+  { symbol:"mUSDT",  name:"Meta Tether",    color:"#26A17B", img:"", pair:"0xAB4CFB051E73db47f75c4A2c31dFaAAFd3A82A8b" }, // FIX: removed extra 'b8'
   { symbol:"mMATIC", name:"Meta Polygon",   color:"#8247E5", img:"", pair:"0x5F5908aD27AFf28b0BDbAD8F93470e83310aE365" },
   { symbol:"mDOGE",  name:"Meta Dogecoin",  color:"#C2A633", img:"", pair:"0x8e71b96897c6D5EF3954b06636c24EdB4866b488" },
   { symbol:"mLTC",   name:"Meta Litecoin",  color:"#a8a8a8", img:"", pair:"0xd4faf6a3B43105395C1f3db6525eA0fBF5B3aF9a" },
@@ -100,51 +100,33 @@ function calcRmadPrice(r0, r1, token0Addr) {
   return Number((r0 * 1_000_000_000_000n) / r1) / 1_000_000_000_000;
 }
 
-// ─── DEXSCREENER API ──────────────────────────────────────────────────────────
-async function fetchDexScreenerPairs(pairAddresses) {
+// FIX: fetch price for any EUROSPACE pair using on-chain RPC
+// Reads token0 from the pair contract to determine reserve order correctly
+async function fetchPairOnChainPrice(pairAddr) {
   try {
-    const CHUNK = 30;
-    const results = {};
-    for (let i = 0; i < pairAddresses.length; i += CHUNK) {
-      const chunk = pairAddresses.slice(i, i + CHUNK);
-      const url   = `${DS_API}/${chunk.join(",")}`;
-      const r = await fetch(url, {
-        headers: { Accept: "application/json" },
-        signal: AbortSignal.timeout(10000),
-      });
-      if (!r.ok) continue;
-      const d = await r.json();
-      if (!Array.isArray(d.pairs)) continue;
-      for (const p of d.pairs) {
-        const addr = p.pairAddress?.toLowerCase();
-        if (!addr) continue;
-        results[addr] = {
-          priceNative : parseFloat(p.priceNative) || 0,
-          priceUsd    : parseFloat(p.priceUsd)    || 0,
-          change24h   : p.priceChange?.h24  ?? null,
-          change1h    : p.priceChange?.h1   ?? null,
-          volume24h   : p.volume?.h24       ?? 0,
-          liquidity   : p.liquidity?.usd    ?? 0,
-          baseSymbol  : p.baseToken?.symbol ?? "",
-          quoteSymbol : p.quoteToken?.symbol ?? "",
-        };
-      }
-    }
-    return results;
-  } catch (e) {
-    console.error("DexScreener API error:", e);
-    return {};
-  }
+    const t0res  = await rpcFetch("eth_call", [{ to: pairAddr, data: "0x0dfe1681" }, "latest"]);
+    const token0 = t0res && t0res.length >= 66
+      ? ("0x" + t0res.slice(26)).toLowerCase()
+      : null;
+    const data = await fetchPairReserves(pairAddr);
+    if (!data) return null;
+    // WMON is token0 → price = r0/r1 (WMON per meta-token)
+    // WMON is token1 → price = r1/r0 (WMON per meta-token)
+    const wmonIsToken0 = token0 === WMON_ADDR.toLowerCase();
+    return wmonIsToken0
+      ? Number((data.r0 * 1_000_000_000_000n) / data.r1) / 1_000_000_000_000
+      : Number((data.r1 * 1_000_000_000_000n) / data.r0) / 1_000_000_000_000;
+  } catch (_) { return null; }
 }
 
 // ─── AD BANNER ────────────────────────────────────────────────────────────────
 const RMAD_AD_LINKS = [
-  { label:"Telegram",    sub:"@Rocket_Moonad_bot", url:"https://t.me/Rocket_Moonad_bot",               color:"#00c8ff" },
+  { label:"Telegram",    sub:"@Rocket_Moonad_bot", url:"https://t.me/Rocket_Moonad_bot",                   color:"#00c8ff" },
   { label:"Discord",     sub:"Join Server",         url:"https://discord.com/channels/1316093079090106472", color:"#5865f2" },
-  { label:"Twitter / X", sub:"@bnbgold277983",      url:"https://twitter.com/bnbgold277983",            color:"#e0e0ff" },
-  { label:"MonadVision", sub:"RMAD Holders",        url:MONAD_URL,                                      color:"#836ef9" },
-  { label:"DexScreener", sub:"RMAD/WMON Pair",      url:DEX_URL,                                        color:"#00FF88" },
-  { label:"Moon Rockets",sub:"Season 1 · Monad",    url:DAPP_URL,                                       color:"#a78bfa" },
+  { label:"Twitter / X", sub:"@bnbgold277983",      url:"https://twitter.com/bnbgold277983",                color:"#e0e0ff" },
+  { label:"MonadVision", sub:"RMAD Holders",        url:MONAD_URL,                                          color:"#836ef9" },
+  { label:"DexScreener", sub:"RMAD/WMON Pair",      url:DEX_URL,                                            color:"#00FF88" },
+  { label:"Moon Rockets",sub:"Season 1 · Monad",    url:DAPP_URL,                                           color:"#a78bfa" },
 ];
 
 function AdBanner() {
@@ -210,14 +192,30 @@ function useLiveDexPrice() {
   return { dexPrice, dexChange, dexLoading };
 }
 
-// ─── DEX PAIRS PRICES HOOK ────────────────────────────────────────────────────
+// ─── DEX PAIRS PRICES HOOK (ON-CHAIN — no CORS issues) ───────────────────────
+// FIX: replaced DexScreener API (CORS-blocked in browser) with direct on-chain RPC calls
 function useDexPrices() {
   const [prices,  setPrices]  = useState({});
   const [loading, setLoading] = useState(true);
 
   async function load() {
-    const data = await fetchDexScreenerPairs(DEX_PAIRS.map(p => p.pair));
-    setPrices(data);
+    const results = {};
+    await Promise.all(
+      DEX_PAIRS.map(async (p) => {
+        const price = await fetchPairOnChainPrice(p.pair);
+        if (price !== null) {
+          results[p.pair.toLowerCase()] = {
+            priceNative : price,
+            priceUsd    : 0,    // USD conversion requires oracle; omitted
+            change24h   : null, // not available on-chain
+            change1h    : null,
+            volume24h   : 0,
+            liquidity   : 0,
+          };
+        }
+      })
+    );
+    setPrices(results);
     setLoading(false);
   }
 
@@ -256,10 +254,10 @@ function Dashboard() {
   const { prices: dexPrices, loading: dexPairsLoading } = useDexPrices();
   const { stakedIds, pending, stake, unstake, claimRewards } = useStaking(account, sendTx);
 
-  const [filter,        setFilter]       = useState("all");
-  const [tab,           setTab]          = useState("staking");
-  const [dexFilter,     setDexFilter]    = useState("all");
-  const [selectedPair,  setSelectedPair] = useState(null);
+  const [filter,       setFilter]      = useState("all");
+  const [tab,          setTab]         = useState("staking");
+  const [dexFilter,    setDexFilter]   = useState("all");
+  const [selectedPair, setSelectedPair] = useState(null);
 
   const nftsWithState = NFTS.map(n => ({ ...n, staked: stakedIds.includes(n.id.toString()) }));
   const filtered =
@@ -326,7 +324,7 @@ function Dashboard() {
           ))}
         </div>
 
-        {/* PRICE BAR — RMAD only (no DEX_PAIRS here) */}
+        {/* PRICE BAR */}
         <div style={{ display:"flex", flexWrap:"wrap", gap:"8px", marginBottom:"14px" }}>
           <div style={{ flex:1, minWidth:180, display:"flex", alignItems:"center", gap:"10px", background:"var(--bg-panel)", border:"0.5px solid var(--green-dim)", borderRadius:"10px", padding:"10px 14px" }}>
             <div style={{ flex:1 }}>
@@ -458,7 +456,7 @@ function Dashboard() {
               </span>
               {dexPairsLoading
                 ? <span style={{ fontSize:"10px", color:"#555" }}><span style={{ display:"inline-block", animation:"spin 1s linear infinite" }}>⟳</span> Loading…</span>
-                : <span style={{ marginLeft:"auto", fontSize:"9px", color:"#444" }}>via DexScreener API · ↻30s</span>
+                : <span style={{ marginLeft:"auto", fontSize:"9px", color:"#444" }}>On-Chain RPC · ↻30s</span>
               }
             </div>
 
@@ -546,8 +544,7 @@ function Dashboard() {
             )}
 
             <div style={{ marginTop:"14px", padding:"10px 14px", background:"var(--bg-panel)", borderRadius:"8px", fontSize:"10px", color:"#444", lineHeight:1.8 }}>
-              ℹ️ Prices fetched from <code style={{ color:"#836ef9" }}>api.dexscreener.com</code> every 30 s.
-              Shows WMON price, USD price, 24 h/1 h change, liquidity and volume.
+              ℹ️ Prices fetched directly from <code style={{ color:"#836ef9" }}>rpc.monad.xyz</code> every 30s via on-chain reserves.
               Click any card to open embedded chart. EUROSPACE DEX · Monad Mainnet.
             </div>
           </div>
