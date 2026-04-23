@@ -12,18 +12,18 @@ process.on("uncaughtException",  (err) => console.error("Uncaught exception:",  
 
 // ─── CONTRACTS ────────────────────────────────────────────────────────────────
 const NFT_ADDR     = "0x45336C2E15F2fe58c67Ee4035a520231b2751669"; // NFT (ERC-721)
-const STAKING_ADDR = "0xec5773F31CA0F4012624392243E0B6517B518976"; // Staking (MODEL D)
+const STAKING_ADDR = "0xec5773F31CA0F4012624392243E0B6517B518976"; // Staking
 const RMAD_ADDR    = "0x9a440Afaa434cDd19234e58798DeFA0E71be0A67"; // RMAD Token (ERC-20)
 const ORACLE_ADDR  = "0xEf98C35c95206527Bf2783fEf8f69Cfc12a3c2e1"; // Oracle (PriceFeed)
-const RAFFLE_ADDR  = "0xbcc94553Cb4facD17f209FDda4a54012Be616Cfc"; // Raffle (VRF Fake)
+const RAFFLE_ADDR  = "0xbcc94553Cb4facD17f209FDda4a54012Be616Cfc"; // Raffle
 const RMAD_PAIR    = "0x754704bc059f8c67012fed69bc8a327a5aafb603"; // RMAD/WMON LP Pair
 const WMON_ADDR    = "0x2cE8C8F4961a54B2e87585f4178467006B76B418"; // Wrapped MON
 
 // ─── URLS ─────────────────────────────────────────────────────────────────────
-const DAPP_URL  = "https://6e82f368.rocketmoonad.pages.dev";
-const DEX_URL   = `https://dexscreener.com/monad/${RMAD_PAIR}`;
-const MONAD_URL = `https://monadvision.com/token/${RMAD_ADDR}?tab=Holders`;
-const DS_API    = "https://api.dexscreener.com/latest/dex/pairs/monad";
+const DAPP_URL   = "https://6e82f368.rocketmoonad.pages.dev";
+const DEX_URL    = `https://dexscreener.com/monad/${RMAD_PAIR}`;
+const MONAD_URL  = `https://monadvision.com/token/${RMAD_ADDR}?tab=Holders`;
+const DS_API     = "https://api.dexscreener.com/latest/dex/pairs/monad";
 const MONAD_RPCS = ["https://rpc.monad.xyz", "https://rpc.ankr.com/monad_mainnet"];
 
 // ─── EUROSPACE DEX PAIRS ─────────────────────────────────────────────────────
@@ -35,7 +35,7 @@ const DEX_PAIRS = [
   { symbol:"mBNB",   name:"Meta BNB",       pair:"0xd77B55A199EA0DC81EB4c7c36d45fBda4D6477B6" },
   { symbol:"mXRP",   name:"Meta XRP",       pair:"0x69884c6C8Fe6F833aEEDE2A4c0949e667C7F79fB" },
   { symbol:"mUSDC",  name:"Meta USDC",      pair:"0x3BE5B19348d6Ccbc20e0DCF3Cab0aDF9e4643dCa" },
-  { symbol:"mUSDT",  name:"Meta Tether",    pair:"0xAB4CFB051E73db47f75c4A2c31dFaAFd3A82A8b8" },
+  { symbol:"mUSDT",  name:"Meta Tether",    pair:"0xAB4CFB051E73db47f75c4A2c31dFaAAFd3A82A8b8" },
   { symbol:"mMATIC", name:"Meta Polygon",   pair:"0x5F5908aD27AFf28b0BDbAD8F93470e83310aE365" },
   { symbol:"mDOGE",  name:"Meta Dogecoin",  pair:"0x8e71b96897c6D5EF3954b06636c24EdB4866b488" },
   { symbol:"mLTC",   name:"Meta Litecoin",  pair:"0xd4faf6a3B43105395C1f3db6525eA0fBF5B3aF9a" },
@@ -99,15 +99,14 @@ async function fetchOnChainPrice() {
 // ─── ON-CHAIN PRICE FOR ANY EUROSPACE PAIR ────────────────────────────────────
 async function fetchPairOnChainPrice(pairAddr) {
   try {
-    const t0res = await rpcFetch("eth_call", [{ to: pairAddr, data: "0x0dfe1681" }, "latest"]);
+    const t0res  = await rpcFetch("eth_call", [{ to: pairAddr, data: "0x0dfe1681" }, "latest"]);
     const token0 = t0res && t0res.length >= 66 ? ("0x" + t0res.slice(26)).toLowerCase() : null;
-    const res = await rpcFetch("eth_call", [{ to: pairAddr, data: "0x0902f1ac" }, "latest"]);
+    const res    = await rpcFetch("eth_call", [{ to: pairAddr, data: "0x0902f1ac" }, "latest"]);
     if (!res || res === "0x" || res.length < 130) return null;
     const r0 = BigInt("0x" + res.slice(2, 66));
     const r1 = BigInt("0x" + res.slice(66, 130));
     if (r0 === 0n || r1 === 0n) return null;
-    const wmonLower = WMON_ADDR.toLowerCase();
-    const wmonIsToken0 = token0 === wmonLower;
+    const wmonIsToken0 = token0 === WMON_ADDR.toLowerCase();
     return wmonIsToken0
       ? Number((r0 * 1_000_000_000_000n) / r1) / 1_000_000_000_000
       : Number((r1 * 1_000_000_000_000n) / r0) / 1_000_000_000_000;
@@ -284,7 +283,7 @@ async function sendPriceMessage(chatId) {
   const loadingMsg = await bot.sendMessage(chatId, "⏳ Fetching live on-chain price...");
   const price = await fetchOnChainPrice();
   await bot.deleteMessage(chatId, loadingMsg.message_id).catch(() => {});
-  const now = new Date().toUTCString();
+  const now  = new Date().toUTCString();
   const text = price !== null
     ? `💰 *RMAD Live Price*
 ━━━━━━━━━━━━━━━━━━━━
@@ -321,7 +320,7 @@ RPC may be temporarily unavailable\\.`;
 async function sendDexMessage(chatId, filter = "all") {
   const loadingMsg = await bot.sendMessage(chatId, "⏳ Fetching DEX prices...");
 
-  const dsData = await fetchDexScreenerPairs(DEX_PAIRS.map(p => p.pair));
+  const dsData    = await fetchDexScreenerPairs(DEX_PAIRS.map(p => p.pair));
   const dsHasData = Object.keys(dsData).length > 0;
 
   const filtered = filter === "stable"
@@ -345,15 +344,15 @@ async function sendDexMessage(chatId, filter = "all") {
 
   const sourceNote = dsHasData ? "DexScreener API" : "On-Chain RPC (DS not indexed yet)";
 
-  let lines = [
+  const lines = [
     `📊 *EUROSPACE DEX Live · Monad*`,
     `_Source: ${sourceNote}_`,
     `━━━━━━━━━━━━━━━━━━━━`,
   ];
 
   for (const p of filtered) {
-    const key = p.pair.toLowerCase();
-    const pd  = pairPrices[key];
+    const key      = p.pair.toLowerCase();
+    const pd       = pairPrices[key];
     const hasPrice = pd && pd.price > 0;
     const priceStr = hasPrice ? fmtNative(pd.price) + " WMON" : "—";
     const usdStr   = hasPrice && pd.priceUsd ? fmtUsd(pd.priceUsd) : "";
@@ -509,7 +508,7 @@ bot.on("callback_query", async (query) => {
   const chatId = query.message.chat.id;
   try { await bot.answerCallbackQuery(query.id); } catch (e) {}
 
-  if (data === "noop") return;
+  if (data === "noop")        return;
   if (data === "main_menu")   { await bot.sendMessage(chatId, MAIN_MENU_TEXT, { parse_mode:"Markdown", reply_markup:MAIN_MENU_KEYBOARD }); return; }
   if (data === "price_check") { await sendPriceMessage(chatId); return; }
   if (data === "dex_all")     { await sendDexMessage(chatId, "all");    return; }
