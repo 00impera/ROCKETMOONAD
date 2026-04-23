@@ -18,13 +18,17 @@ import DailyClaimPanel from "./components/DailyClaimPanel";
 import RafflePanel     from "./components/RafflePanel";
 
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
-const RMAD_PAIR  = "0x754704bc059f8c67012fed69bc8a327a5aafb603"; // ✅ FIXED: correct RMAD/WMON pair
-const RMAD_ADDR  = "0x9a440Afaa434cDd19234e58798DeFA0E71be0A67";
-const WMON_ADDR  = "0x2cE8C8F4961a54B2e87585f4178467006B76B418";
-const DAPP_URL   = "https://6e82f368.rocketmoonad.pages.dev";
-const DEX_URL    = `https://dexscreener.com/monad/${0x754704Bc059F8C67012fEd69BC8A327a5aafb603}`; // ✅ FIXED: now points to correct pair
-const MONAD_RPCS = ["https://rpc.monad.xyz", "https://monad.drpc.org"];
-const DS_API     = "https://api.dexscreener.com/latest/dex/pairs/monad";
+const RMAD_PAIR    = "0x754704bc059f8c67012fed69bc8a327a5aafb603"; // RMAD/WMON pair
+const NFT_ADDR     = "0x45336C2E15F2fe58c67Ee4035a520231b2751669"; // NFT contract (ERC-721)
+const STAKING_ADDR = "0xec5773F31CA0F4012624392243E0B6517B518976"; // Staking (MODEL D)
+const RMAD_ADDR    = "0x9a440Afaa434cDd19234e58798DeFA0E71be0A67"; // RMAD Token (ERC-20)
+const ORACLE_ADDR  = "0xEf98C35c95206527Bf2783fEf8f69Cfc12a3c2e1"; // Oracle (PriceFeed)
+const RAFFLE_ADDR  = "0xbcc94553Cb4facD17f209FDda4a54012Be616Cfc"; // Raffle (VRF Fake)
+const WMON_ADDR    = "0x2cE8C8F4961a54B2e87585f4178467006B76B418";
+const DAPP_URL     = "https://6e82f368.rocketmoonad.pages.dev";
+const DEX_URL      = `https://dexscreener.com/monad/${RMAD_PAIR}`;
+const MONAD_RPCS   = ["https://rpc.monad.xyz", "https://monad.drpc.org"];
+const DS_API       = "https://api.dexscreener.com/latest/dex/pairs/monad";
 
 // ─── EUROSPACE DEX PAIRS ─────────────────────────────────────────────────────
 const DEX_PAIRS = [
@@ -47,7 +51,7 @@ const DEX_PAIRS = [
   { symbol:"mCRO",   name:"Meta Cronos",    color:"#60a5fa", img:"", pair:"0x7D9e8050Ba0c0a6c8336A49a5Af6748AA6BD855C" },
 ];
 
-// ─── ON-CHAIN RPC HELPERS (for RMAD main price) ───────────────────────────────
+// ─── ON-CHAIN RPC HELPERS ─────────────────────────────────────────────────────
 async function rpcFetch(method, params) {
   for (const rpc of MONAD_RPCS) {
     const ctrl = new AbortController();
@@ -97,7 +101,6 @@ function calcRmadPrice(r0, r1, token0Addr) {
 // ─── DEXSCREENER API — batch fetch all pairs ──────────────────────────────────
 async function fetchDexScreenerPairs(pairAddresses) {
   try {
-    // DS API accepts up to 30 comma-separated addresses per request
     const CHUNK = 30;
     const results = {};
     for (let i = 0; i < pairAddresses.length; i += CHUNK) {
@@ -133,13 +136,15 @@ async function fetchDexScreenerPairs(pairAddresses) {
 }
 
 // ─── AD BANNER ───────────────────────────────────────────────────────────────
+const MONAD_URL = `https://monadvision.com/token/${RMAD_ADDR}?tab=Holders`;
+
 const RMAD_AD_LINKS = [
-  { label:"Telegram",    sub:"@Rocket_Moonad_bot", url:"https://t.me/Rocket_Moonad_bot",                                                       color:"#00c8ff" },
-  { label:"Discord",     sub:"Join Server",         url:"https://discord.com/channels/1316093079090106472",                                     color:"#5865f2" },
-  { label:"Twitter / X", sub:"@bnbgold277983",      url:"https://twitter.com/bnbgold277983",                                                   color:"#e0e0ff" },
-  { label:"MonadVision", sub:"RMAD Holders",        url:"https://monadvision.com/token/0x9a440Afaa434cDd19234e58798DeFA0E71be0A67?tab=Holders", color:"#836ef9" },
-  { label:"DexScreener", sub:"RMAD/WMON Pair",      url:DEX_URL,                                                                               color:"#00FF88" },
-  { label:"Moon Rockets",sub:"Season 1 · Monad",    url:DAPP_URL,                                                                              color:"#a78bfa" },
+  { label:"Telegram",    sub:"@Rocket_Moonad_bot", url:"https://t.me/Rocket_Moonad_bot",  color:"#00c8ff" },
+  { label:"Discord",     sub:"Join Server",         url:"https://discord.com/channels/1316093079090106472", color:"#5865f2" },
+  { label:"Twitter / X", sub:"@bnbgold277983",      url:"https://twitter.com/bnbgold277983", color:"#e0e0ff" },
+  { label:"MonadVision", sub:"RMAD Holders",        url:MONAD_URL,                         color:"#836ef9" },
+  { label:"DexScreener", sub:"RMAD/WMON Pair",      url:DEX_URL,                           color:"#00FF88" },
+  { label:"Moon Rockets",sub:"Season 1 · Monad",    url:DAPP_URL,                          color:"#a78bfa" },
 ];
 
 function AdBanner() {
@@ -309,7 +314,13 @@ function Dashboard() {
 
         {/* CONTRACT PILLS */}
         <div style={{ display:"flex", gap:"8px", flexWrap:"wrap", marginBottom:"12px" }}>
-          {CONTRACTS_LIST.map(({ label, addr }) => (
+          {[
+            { label:"NFT (ERC-721)",    addr: NFT_ADDR     },
+            { label:"Staking",          addr: STAKING_ADDR },
+            { label:"RMAD (ERC-20)",    addr: RMAD_ADDR    },
+            { label:"Oracle",           addr: ORACLE_ADDR  },
+            { label:"Raffle",           addr: RAFFLE_ADDR  },
+          ].map(({ label, addr }) => (
             <div key={addr} style={{ background:"var(--bg-panel)", border:"0.5px solid var(--border-subtle)", borderRadius:"8px", padding:"6px 10px" }}>
               <div style={{ fontSize:"9px", color:"#444", textTransform:"uppercase", letterSpacing:"1px", marginBottom:"2px" }}>{label}</div>
               <div style={{ fontSize:"10px", color:"#666", fontFamily:"var(--font-mono)" }}>{addr.slice(0,6)}…{addr.slice(-4)}</div>
