@@ -10,15 +10,14 @@ http.createServer((req, res) => res.end("🚀 RocketMoonad Bot is running!"))
 process.on("unhandledRejection", (err) => console.error("Unhandled rejection:", err.message));
 process.on("uncaughtException",  (err) => console.error("Uncaught exception:",  err.message));
 
-// ─── CONTRACTS ──────────────────────────────────────────────────────────────
-const NFT_ADDR     = "0x45336C2E15F2fe58c67Ee4035a520231b2751669"; // NFT (ERC-721)
-const STAKING_ADDR = "0xec5773F31CA0F4012624392243E0B6517B518976"; // Staking
-const RMAD_ADDR    = "0x9a440Afaa434cDd19234e58798DeFA0E71be0A67"; // RMAD Token (ERC-20)
-const ORACLE_ADDR  = "0xEf98C35c95206527Bf2783fEf8f69Cfc12a3c2e1"; // Oracle (PriceFeed)
-const RAFFLE_ADDR  = "0xbcc94553Cb4facD17f209FDda4a54012Be616Cfc"; // Raffle
-// FIX: adresa corecta a pool-ului V2 functional cu lichiditate — sincronizat cu App.js
-const RMAD_PAIR    = "0xb5CB9F4ECCBeae6F95C9222Aa12C319fF362a5a3"; // RMAD/WMON LP Pair
-const WMON_ADDR    = "0x2cE8C8F4961a54B2e87585f4178467006B76B418"; // Wrapped MON
+// ─── CONTRACTS (updated) ────────────────────────────────────────────────────
+const NFT_ADDR     = "0x79C0bC7CF4B9F30F8614e66236eF634DB50f668f"; // NEW
+const STAKING_ADDR = "0x2F0317d1166fF385F44FACBd92BD4E43b03D2CbE"; // NEW
+const RMAD_ADDR    = "0x9a440Afaa434cDd19234e58798DeFA0E71be0A67"; // unchanged
+const ORACLE_ADDR  = "0xEf98C35c95206527Bf2783fEf8f69Cfc12a3c2e1"; // unchanged
+const RAFFLE_ADDR  = "0x00508e9F485021d20d8b2eDa6E6415f9Bf7300ee"; // NEW
+const RMAD_PAIR    = "0xb5CB9F4ECCBeae6F95C9222Aa12C319fF362a5a3";
+const WMON_ADDR    = "0x2cE8C8F4961a54B2e87585f4178467006B76B418";
 
 // ─── URLS ───────────────────────────────────────────────────────────────────
 const DAPP_URL   = "https://6e82f368.rocketmoonad.pages.dev";
@@ -28,7 +27,6 @@ const DS_API     = "https://api.dexscreener.com/latest/dex/pairs/monad";
 const MONAD_RPCS = ["https://rpc.monad.xyz", "https://rpc.ankr.com/monad_mainnet"];
 
 // ─── EUROSPACE DEX PAIRS ───────────────────────────────────────────────────
-// FIX: mUSDT pair corect — 42 chars (fara 'b8' extra la final)
 const DEX_PAIRS = [
   { symbol:"EURO",   name:"Meta EuroCoin",  pair:"0x9E32FdD909a5BdcCfb874DEE72F24169AfE4eC02" },
   { symbol:"mBTC",   name:"Meta Bitcoin",   pair:"0x47Dc73D3e1C520056AdF52349A6A282e5262D56d" },
@@ -49,8 +47,118 @@ const DEX_PAIRS = [
   { symbol:"mCRO",   name:"Meta Cronos",    pair:"0x7D9e8050Ba0c0a6c8336A49a5Af6748AA6BD855C" },
 ];
 
+// ─── NFT COLLECTION (7 rockets — minted at block 70276151) ─────────────────
+const NFTS = [
+  {
+    id: 0,
+    name: "RocketMoonad #1",
+    rarity: "Legendary",
+    power: 95, speed: 90, boost: 92,
+    image: "https://res.cloudinary.com/drmsykh02/image/upload/v1777057320/rocketmoonad/afomr3mzeyu1s2ydjfpn.jpg",
+    metadata: "https://res.cloudinary.com/drmsykh02/raw/upload/v1777057830/rocketmoonad/metadata/qzhcti7accat6tv8yu3k.json",
+    history: "First rocket launched on Monad Mainnet. Genesis of the RocketMoonad collection.",
+  },
+  {
+    id: 1,
+    name: "RocketMoonad #2",
+    rarity: "Epic",
+    power: 87, speed: 82, boost: 80,
+    image: "https://res.cloudinary.com/drmsykh02/image/upload/v1777057326/rocketmoonad/o2tn8s6s1mnq1c3ym0ci.jpg",
+    metadata: "https://res.cloudinary.com/drmsykh02/raw/upload/v1777057835/rocketmoonad/metadata/gay5cfxorwckrkkleexw.json",
+    history: "Pioneer of the RocketMoonad staking ecosystem.",
+  },
+  {
+    id: 2,
+    name: "RocketMoonad #3",
+    rarity: "Epic",
+    power: 83, speed: 78, boost: 77,
+    image: "https://res.cloudinary.com/drmsykh02/image/upload/v1777057329/rocketmoonad/lazmddwnnu3urha31r4y.jpg",
+    metadata: "https://res.cloudinary.com/drmsykh02/raw/upload/v1777057839/rocketmoonad/metadata/qf3nxcojxnf4yz0jje6q.json",
+    history: "Fueled by RMAD token rewards from the staking contract.",
+  },
+  {
+    id: 3,
+    name: "RocketMoonad #4",
+    rarity: "Rare",
+    power: 72, speed: 68, boost: 70,
+    image: "https://res.cloudinary.com/drmsykh02/image/upload/v1777057337/rocketmoonad/hocbys9ebhxu4npr0yqq.jpg",
+    metadata: "https://res.cloudinary.com/drmsykh02/raw/upload/v1777057843/rocketmoonad/metadata/sicn0a0h38magrtsr3bd.json",
+    history: "Entered the RocketMoonad raffle system at block 70257020.",
+  },
+  {
+    id: 4,
+    name: "RocketMoonad #5",
+    rarity: "Rare",
+    power: 68, speed: 74, boost: 66,
+    image: "https://res.cloudinary.com/drmsykh02/image/upload/v1777057341/rocketmoonad/ei6mqxspfepkktds0tdk.jpg",
+    metadata: "https://res.cloudinary.com/drmsykh02/raw/upload/v1777057845/rocketmoonad/metadata/t6frxxq1hzxcu7dozcn9.json",
+    history: "Staked in the RocketMoonad staking contract earning RMAD rewards.",
+  },
+  {
+    id: 5,
+    name: "RocketMoonad #6",
+    rarity: "Uncommon",
+    power: 60, speed: 65, boost: 58,
+    image: "https://res.cloudinary.com/drmsykh02/image/upload/v1777057343/rocketmoonad/dr0lwprrotv0znjfkfof.jpg",
+    metadata: "https://res.cloudinary.com/drmsykh02/raw/upload/v1777057849/rocketmoonad/metadata/eics5dz9z4z58a5wa10x.json",
+    history: "Part of the RocketMoonad DeFi ecosystem on Monad chain 143.",
+  },
+  {
+    id: 6,
+    name: "RocketMoonad #7",
+    rarity: "Uncommon",
+    power: 55, speed: 62, boost: 54,
+    image: "https://res.cloudinary.com/drmsykh02/image/upload/v1777057345/rocketmoonad/nzsd9blcfu8lke9j3xpa.jpg",
+    metadata: "https://res.cloudinary.com/drmsykh02/raw/upload/v1777057851/rocketmoonad/metadata/qz6k0ckluxo4ayrkoxpn.json",
+    history: "Final rocket of the genesis RocketMoonad collection on Monad Mainnet.",
+  },
+];
+
+const RARITY_EMOJI = { Legendary:"🔥", Epic:"💜", Rare:"💙", Uncommon:"💚", Common:"⚪" };
+const RARITY_STARS = { Legendary:"⭐⭐⭐⭐⭐", Epic:"⭐⭐⭐⭐", Rare:"⭐⭐⭐", Uncommon:"⭐⭐", Common:"⭐" };
+
+function bar(value) {
+  const filled = Math.round(value / 10);
+  return "█".repeat(filled) + "░".repeat(10 - filled) + ` ${value}`;
+}
+
+function nftCaption(nft) {
+  return `🚀 *Moon Rockets Season 1*
+━━━━━━━━━━━━━━━━━━━━
+${RARITY_EMOJI[nft.rarity] || "⚪"} *${nft.name}*
+🏷️ Rarity: \`${nft.rarity}\` ${RARITY_STARS[nft.rarity] || "⭐"}
+🆔 Token ID: \`#${nft.id}\`
+📜 History: _${nft.history}_
+
+📊 *STATS*
+⚔️ PWR: \`${bar(nft.power)}\`
+💨 SPD: \`${bar(nft.speed)}\`
+🚀 BST: \`${bar(nft.boost)}\`
+
+💎 *RMAD Token:* \`${RMAD_ADDR}\`
+📦 *NFT Contract:* \`${NFT_ADDR}\`
+━━━━━━━━━━━━━━━━━━━━
+🌐 [Open dApp](${DAPP_URL}) | 📈 [Trade RMAD](${DEX_URL})`;
+}
+
+function nftKeyboard(nft) {
+  const prevId = nft.id - 1 < 0 ? 6 : nft.id - 1;
+  const nextId = nft.id + 1 > 6 ? 0 : nft.id + 1;
+  return {
+    inline_keyboard: [
+      [{ text:"🌐 Open dApp", url:DAPP_URL }, { text:"📈 Trade RMAD", url:DEX_URL }],
+      [{ text:"📊 MonadVision", url:MONAD_URL }, { text:"🔍 Staking", url:DAPP_URL }],
+      [
+        { text:`◀️ #${prevId}`, callback_data:`nft_${prevId}` },
+        { text:`${nft.id + 1}/7`, callback_data:"noop" },
+        { text:`#${nextId} ▶️`, callback_data:`nft_${nextId}` },
+      ],
+      [{ text:"🏠 Main Menu", callback_data:"main_menu" }],
+    ],
+  };
+}
+
 // ─── ON-CHAIN RPC HELPER ────────────────────────────────────────────────────
-// FIX: foloseste AbortController in loc de AbortSignal.timeout (compatibil Node 16+)
 async function rpcFetch(method, params) {
   for (const rpc of MONAD_RPCS) {
     const ctrl = new AbortController();
@@ -99,7 +207,6 @@ async function fetchOnChainPrice() {
   }
 }
 
-// ─── ON-CHAIN PRICE FOR ANY EUROSPACE PAIR ──────────────────────────────────
 async function fetchPairOnChainPrice(pairAddr) {
   try {
     const t0res  = await rpcFetch("eth_call", [{ to: pairAddr, data: "0x0dfe1681" }, "latest"]);
@@ -117,7 +224,6 @@ async function fetchPairOnChainPrice(pairAddr) {
 }
 
 // ─── DEXSCREENER BATCH FETCH ────────────────────────────────────────────────
-// FIX: inlocuit AbortSignal.timeout cu AbortController — compatibil Node 16+
 async function fetchDexScreenerPairs(pairAddresses) {
   try {
     const CHUNK = 30;
@@ -128,10 +234,7 @@ async function fetchDexScreenerPairs(pairAddresses) {
       const ctrl  = new AbortController();
       const t     = setTimeout(() => ctrl.abort(), 10000);
       try {
-        const r = await fetch(url, {
-          headers: { Accept: "application/json" },
-          signal: ctrl.signal,
-        });
+        const r = await fetch(url, { headers:{ Accept:"application/json" }, signal:ctrl.signal });
         clearTimeout(t);
         if (!r.ok) continue;
         const d = await r.json();
@@ -184,73 +287,6 @@ function chgArrow(v) {
   return (n >= 0 ? "▲" : "▼") + Math.abs(n).toFixed(2) + "%";
 }
 
-// ─── NFT DATA ───────────────────────────────────────────────────────────────
-const NFTS = [
-  { id:1,  name:"Dark Flame Knight I",   rarity:"Legendary", power:95, speed:88, boost:92,
-    image:"https://res.cloudinary.com/drmsykh02/image/upload/v1776867743/rocketmoonad/nfts/dark_flame_knight_i.jpg" },
-  { id:2,  name:"Ember Warlord",         rarity:"Epic",      power:87, speed:75, boost:80,
-    image:"https://res.cloudinary.com/drmsykh02/image/upload/v1776867746/rocketmoonad/nfts/ember_warlord.jpg" },
-  { id:3,  name:"Shadow Thunder Knight", rarity:"Epic",      power:83, speed:79, boost:77,
-    image:"https://res.cloudinary.com/drmsykh02/image/upload/v1776867749/rocketmoonad/nfts/shadow_thunder_knight.jpg" },
-  { id:4,  name:"Iron Crown Sentinel",   rarity:"Rare",      power:72, speed:68, boost:70,
-    image:"https://res.cloudinary.com/drmsykh02/image/upload/v1776867752/rocketmoonad/nfts/iron_crown_sentinel.jpg" },
-  { id:5,  name:"Dark Flame Knight II",  rarity:"Legendary", power:97, speed:90, boost:95,
-    image:"https://res.cloudinary.com/drmsykh02/image/upload/v1776867756/rocketmoonad/nfts/dark_flame_knight_ii.jpg" },
-  { id:6,  name:"Galactic Voyager",      rarity:"Epic",      power:80, speed:95, boost:85,
-    image:"https://res.cloudinary.com/drmsykh02/image/upload/v1776867758/rocketmoonad/nfts/galactic_voyager.jpg" },
-  { id:7,  name:"Neon Rocket Alpha",     rarity:"Rare",      power:65, speed:88, boost:72,
-    image:"https://res.cloudinary.com/drmsykh02/image/upload/v1776867762/rocketmoonad/nfts/neon_rocket_alpha.jpg" },
-  { id:8,  name:"Cosmic Shuttle",        rarity:"Rare",      power:60, speed:85, boost:68,
-    image:"https://res.cloudinary.com/drmsykh02/image/upload/v1776867764/rocketmoonad/nfts/cosmic_shuttle.jpg" },
-  { id:9,  name:"Neon Rocket Omega",     rarity:"Uncommon",  power:55, speed:80, boost:60,
-    image:"https://res.cloudinary.com/drmsykh02/image/upload/v1776867767/rocketmoonad/nfts/neon_rocket_omega.jpg" },
-  { id:10, name:"Arby Butterfly Rocket", rarity:"Mythic",    power:99, speed:99, boost:99,
-    image:"https://res.cloudinary.com/drmsykh02/image/upload/v1776867770/rocketmoonad/nfts/arby_butterfly_rocket.gif" },
-  { id:11, name:"Boys Club Rocket Ride", rarity:"Legendary", power:91, speed:94, boost:93,
-    image:"https://res.cloudinary.com/drmsykh02/image/upload/v1776867774/rocketmoonad/nfts/boys_club_rocket_ride.gif" },
-];
-
-const RARITY_EMOJI = { Legendary:"🔥", Mythic:"🐉", Epic:"💜", Rare:"💙", Uncommon:"💚", Common:"⚪" };
-const RARITY_STARS = { Legendary:"⭐⭐⭐⭐⭐", Mythic:"🌟🌟🌟🌟🌟", Epic:"⭐⭐⭐⭐", Rare:"⭐⭐⭐", Uncommon:"⭐⭐", Common:"⭐" };
-
-function bar(value) {
-  const filled = Math.round(value / 10);
-  return "█".repeat(filled) + "░".repeat(10 - filled) + ` ${value}`;
-}
-
-function nftCaption(nft) {
-  return `🚀 *Moon Rockets Season 1*
-━━━━━━━━━━━━━━━━━━━━
-${RARITY_EMOJI[nft.rarity] || "⚪"} *${nft.name}*
-🏷️ Rarity: \`${nft.rarity}\` ${RARITY_STARS[nft.rarity] || "⭐"}
-🆔 Token ID: \`#${nft.id}\`
-
-📊 *STATS*
-⚔️ PWR: \`${bar(nft.power)}\`
-💨 SPD: \`${bar(nft.speed)}\`
-🚀 BST: \`${bar(nft.boost)}\`
-
-💎 *RMAD Token:* \`${RMAD_ADDR}\`
-📦 *NFT Contract:* \`${NFT_ADDR}\`
-━━━━━━━━━━━━━━━━━━━━
-🌐 [Open dApp](${DAPP_URL}) | 📈 [Trade RMAD](${DEX_URL})`;
-}
-
-function nftKeyboard(nft) {
-  return {
-    inline_keyboard: [
-      [{ text:"🌐 Open dApp", url:DAPP_URL }, { text:"📈 Trade RMAD", url:DEX_URL }],
-      [{ text:"📊 MonadVision", url:MONAD_URL }, { text:"🔍 Staking", url:DAPP_URL }],
-      [
-        { text:"◀️ Prev NFT", callback_data:`nft_${nft.id - 1 < 1 ? 11 : nft.id - 1}` },
-        { text:`${nft.id}/11`, callback_data:"noop" },
-        { text:"Next NFT ▶️", callback_data:`nft_${nft.id + 1 > 11 ? 1 : nft.id + 1}` },
-      ],
-      [{ text:"🏠 Main Menu", callback_data:"main_menu" }],
-    ],
-  };
-}
-
 // ─── MENUS ──────────────────────────────────────────────────────────────────
 const MAIN_MENU_TEXT = `
 🚀 *RocketMoonad* — Moon Rockets Season 1
@@ -258,28 +294,28 @@ const MAIN_MENU_TEXT = `
 
 🌕 Stake your Moon Rockets NFTs
 💎 Earn \`RMAD\` rewards on Monad Mainnet
-🎮 11 unique NFT characters with stats
+🎮 7 unique NFT rockets (Token IDs: #0–#6)
+📦 Minted at block 70276151 on Monad
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📦 NFT Contract: \`${NFT_ADDR}\`
-💎 RMAD Token: \`${RMAD_ADDR}\`
-🔒 Staking Contract: \`${STAKING_ADDR}\`
-🔮 Oracle (PriceFeed): \`${ORACLE_ADDR}\`
-🎰 Raffle Contract: \`${RAFFLE_ADDR}\`
+📦 NFT: \`${NFT_ADDR}\`
+💎 RMAD: \`${RMAD_ADDR}\`
+🔒 Staking: \`${STAKING_ADDR}\`
+🔮 Oracle: \`${ORACLE_ADDR}\`
+🎰 Raffle: \`${RAFFLE_ADDR}\`
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 `;
 
 const MAIN_MENU_KEYBOARD = {
   inline_keyboard: [
     [{ text:"🌐 Open dApp", url:DAPP_URL }, { text:"📈 Trade RMAD", url:DEX_URL }],
-    [{ text:"🖼️ View All NFTs", callback_data:"nft_1" }, { text:"💰 Live Price", callback_data:"price_check" }],
+    [{ text:"🖼️ View All NFTs", callback_data:"nft_0" }, { text:"💰 Live Price", callback_data:"price_check" }],
     [{ text:"📊 MonadVision", url:MONAD_URL }, { text:"ℹ️ How to Stake", callback_data:"how_stake" }],
     [{ text:"📋 All NFT Cards", callback_data:"all_nfts" }, { text:"📊 DEX Live", callback_data:"dex_all" }],
   ],
 };
 
 // ─── SEND PRICE MESSAGE ─────────────────────────────────────────────────────
-// FIX: foloseste Markdown simplu (nu V2) — evita erori de escape cu timestamp
 async function sendPriceMessage(chatId) {
   const loadingMsg = await bot.sendMessage(chatId, "⏳ Fetching live on-chain price...");
   const price = await fetchOnChainPrice();
@@ -406,7 +442,7 @@ bot.onText(/\/dex/,   async (msg) => sendDexMessage(msg.chat.id, "all"));
 
 bot.onText(/\/nfts/, async (msg) => {
   const chatId = msg.chat.id;
-  await bot.sendMessage(chatId, "🚀 Loading all 11 Moon Rockets NFTs...");
+  await bot.sendMessage(chatId, "🚀 Loading all 7 Moon Rockets NFTs...");
   for (const nft of NFTS) {
     try {
       await bot.sendPhoto(chatId, nft.image, {
@@ -419,9 +455,11 @@ bot.onText(/\/nfts/, async (msg) => {
   }
 });
 
+// /nft0 through /nft6
 bot.onText(/\/nft(\d+)/, async (msg, match) => {
-  const nft = NFTS.find(n => n.id === parseInt(match[1]));
-  if (!nft) return bot.sendMessage(msg.chat.id, "❌ NFT not found. Use /nft1 - /nft11");
+  const id  = parseInt(match[1]);
+  const nft = NFTS.find(n => n.id === id);
+  if (!nft) return bot.sendMessage(msg.chat.id, "❌ NFT not found. Use /nft0 - /nft6");
   try {
     await bot.sendPhoto(msg.chat.id, nft.image, { caption:nftCaption(nft), parse_mode:"Markdown", reply_markup:nftKeyboard(nft) });
   } catch (e) {
@@ -434,8 +472,8 @@ bot.onText(/\/trade/, (msg) => bot.sendMessage(msg.chat.id,
 ━━━━━━━━━━━━━━━━━━━━
 💱 Pair: \`RMAD / WMON\`
 🏦 DEX: Uniswap V2 Fork on Monad
-📍 Pair Address: \`${RMAD_PAIR}\`
-💎 RMAD Token: \`${RMAD_ADDR}\`
+📍 Pair: \`${RMAD_PAIR}\`
+💎 RMAD: \`${RMAD_ADDR}\`
 ━━━━━━━━━━━━━━━━━━━━`,
   { parse_mode:"Markdown", reply_markup:{ inline_keyboard:[
     [{ text:"📈 Trade on DexScreener", url:DEX_URL }],
@@ -450,13 +488,13 @@ bot.onText(/\/stake/, (msg) => bot.sendMessage(msg.chat.id,
 ━━━━━━━━━━━━━━━━━━━━
 1️⃣ Connect wallet on Monad Mainnet
 2️⃣ Open the dApp below
-3️⃣ Click \`+\` on any NFT card to stake
-4️⃣ Earn RMAD rewards daily
-5️⃣ Click \`−\` to unstake anytime
+3️⃣ Click \`+ Stake\` on any NFT card
+4️⃣ Earn RMAD rewards every second
+5️⃣ Click \`− Unstake\` to unstake anytime
 6️⃣ Click \`Claim\` to collect RMAD
-💡 You can stake multiple NFTs at once!
+💡 Stake all 7 at once for max rewards!
 ━━━━━━━━━━━━━━━━━━━━
-🔒 Staking Contract: \`${STAKING_ADDR}\``,
+🔒 Staking: \`${STAKING_ADDR}\``,
   { parse_mode:"Markdown", reply_markup:{ inline_keyboard:[
     [{ text:"🌐 Start Staking", url:DAPP_URL }],
     [{ text:"🏠 Main Menu", callback_data:"main_menu" }],
@@ -468,8 +506,11 @@ bot.onText(/\/info/, (msg) => bot.sendMessage(msg.chat.id,
 ━━━━━━━━━━━━━━━━━━━━
 🌐 Network: Monad Mainnet (Chain ID: 143)
 💎 Token: \`RMAD\`
-📦 NFT: Moon Rockets Season 1
-🔢 Total NFTs: 11 unique characters
+📦 Collection: Moon Rockets Season 1
+🔢 Total NFTs: 7 (Token IDs: #0–#6)
+📅 Deployed: Block 70257020
+📦 Minted: Block 70276151
+
 📋 *Contracts*
 💎 RMAD: \`${RMAD_ADDR}\`
 🖼️ NFT: \`${NFT_ADDR}\`
@@ -492,8 +533,8 @@ bot.onText(/\/help/, (msg) => bot.sendMessage(msg.chat.id,
 /start   — Main menu
 /price   — Live on-chain RMAD price
 /dex     — DEX Live: all 17 EUROSPACE pairs
-/nfts    — View all 11 NFT cards with photos
-/nft1    — View specific NFT (1-11)
+/nfts    — View all 7 NFT cards with photos
+/nft0    — View specific NFT (#0 to #6)
 /trade   — Trade RMAD token
 /stake   — How to stake guide
 /info    — Token & contract info
@@ -521,9 +562,9 @@ bot.on("callback_query", async (query) => {
 ━━━━━━━━━━━━━━━━━━━━
 1️⃣ Connect wallet on Monad Mainnet
 2️⃣ Open the dApp
-3️⃣ Click \`+\` on any NFT card to stake
-4️⃣ Earn RMAD rewards daily
-5️⃣ Click \`−\` to unstake anytime
+3️⃣ Click \`+ Stake\` on any NFT card
+4️⃣ Earn RMAD rewards every second
+5️⃣ Click \`− Unstake\` to unstake anytime
 6️⃣ Click \`Claim\` to collect RMAD
 ━━━━━━━━━━━━━━━━━━━━`,
       { parse_mode:"Markdown", reply_markup:{ inline_keyboard:[
@@ -555,7 +596,7 @@ bot.on("callback_query", async (query) => {
   }
 
   if (data === "all_nfts") {
-    await bot.sendMessage(chatId, "🚀 Sending all 11 NFT cards...");
+    await bot.sendMessage(chatId, "🚀 Sending all 7 RocketMoonad NFTs...");
     for (const nft of NFTS) {
       try {
         await bot.sendPhoto(chatId, nft.image, {
@@ -569,7 +610,8 @@ bot.on("callback_query", async (query) => {
   }
 
   if (data.startsWith("nft_")) {
-    const nft = NFTS.find(n => n.id === parseInt(data.split("_")[1]));
+    const id  = parseInt(data.split("_")[1]);
+    const nft = NFTS.find(n => n.id === id);
     if (!nft) return;
     try {
       await bot.sendPhoto(chatId, nft.image, { caption:nftCaption(nft), parse_mode:"Markdown", reply_markup:nftKeyboard(nft) });
@@ -580,4 +622,4 @@ bot.on("callback_query", async (query) => {
   }
 });
 
-console.log("🚀 RocketMoonad Bot started!");
+console.log("🚀 RocketMoonad Bot started! NFTs: 7 | Contracts: updated");
