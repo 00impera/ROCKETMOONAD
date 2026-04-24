@@ -10,23 +10,25 @@ http.createServer((req, res) => res.end("🚀 RocketMoonad Bot is running!"))
 process.on("unhandledRejection", (err) => console.error("Unhandled rejection:", err.message));
 process.on("uncaughtException",  (err) => console.error("Uncaught exception:",  err.message));
 
-// ─── CONTRACTS ────────────────────────────────────────────────────────────────
+// ─── CONTRACTS ──────────────────────────────────────────────────────────────
 const NFT_ADDR     = "0x45336C2E15F2fe58c67Ee4035a520231b2751669"; // NFT (ERC-721)
 const STAKING_ADDR = "0xec5773F31CA0F4012624392243E0B6517B518976"; // Staking
 const RMAD_ADDR    = "0x9a440Afaa434cDd19234e58798DeFA0E71be0A67"; // RMAD Token (ERC-20)
 const ORACLE_ADDR  = "0xEf98C35c95206527Bf2783fEf8f69Cfc12a3c2e1"; // Oracle (PriceFeed)
 const RAFFLE_ADDR  = "0xbcc94553Cb4facD17f209FDda4a54012Be616Cfc"; // Raffle
-const RMAD_PAIR    = "0x754704bc059f8c67012fed69bc8a327a5aafb603"; // RMAD/WMON LP Pair
+// FIX: adresa corecta a pool-ului V2 functional cu lichiditate — sincronizat cu App.js
+const RMAD_PAIR    = "0xb5CB9F4ECCBeae6F95C9222Aa12C319fF362a5a3"; // RMAD/WMON LP Pair
 const WMON_ADDR    = "0x2cE8C8F4961a54B2e87585f4178467006B76B418"; // Wrapped MON
 
-// ─── URLS ─────────────────────────────────────────────────────────────────────
+// ─── URLS ───────────────────────────────────────────────────────────────────
 const DAPP_URL   = "https://6e82f368.rocketmoonad.pages.dev";
 const DEX_URL    = `https://dexscreener.com/monad/${RMAD_PAIR}`;
 const MONAD_URL  = `https://monadvision.com/token/${RMAD_ADDR}?tab=Holders`;
 const DS_API     = "https://api.dexscreener.com/latest/dex/pairs/monad";
 const MONAD_RPCS = ["https://rpc.monad.xyz", "https://rpc.ankr.com/monad_mainnet"];
 
-// ─── EUROSPACE DEX PAIRS ─────────────────────────────────────────────────────
+// ─── EUROSPACE DEX PAIRS ───────────────────────────────────────────────────
+// FIX: mUSDT pair corect — 42 chars (fara 'b8' extra la final)
 const DEX_PAIRS = [
   { symbol:"EURO",   name:"Meta EuroCoin",  pair:"0x9E32FdD909a5BdcCfb874DEE72F24169AfE4eC02" },
   { symbol:"mBTC",   name:"Meta Bitcoin",   pair:"0x47Dc73D3e1C520056AdF52349A6A282e5262D56d" },
@@ -35,7 +37,7 @@ const DEX_PAIRS = [
   { symbol:"mBNB",   name:"Meta BNB",       pair:"0xd77B55A199EA0DC81EB4c7c36d45fBda4D6477B6" },
   { symbol:"mXRP",   name:"Meta XRP",       pair:"0x69884c6C8Fe6F833aEEDE2A4c0949e667C7F79fB" },
   { symbol:"mUSDC",  name:"Meta USDC",      pair:"0x3BE5B19348d6Ccbc20e0DCF3Cab0aDF9e4643dCa" },
-  { symbol:"mUSDT",  name:"Meta Tether",    pair:"0xAB4CFB051E73db47f75c4A2c31dFaAAFd3A82A8b8" },
+  { symbol:"mUSDT",  name:"Meta Tether",    pair:"0xAB4CFB051E73db47f75c4A2c31dFaAAFd3A82A8b" },
   { symbol:"mMATIC", name:"Meta Polygon",   pair:"0x5F5908aD27AFf28b0BDbAD8F93470e83310aE365" },
   { symbol:"mDOGE",  name:"Meta Dogecoin",  pair:"0x8e71b96897c6D5EF3954b06636c24EdB4866b488" },
   { symbol:"mLTC",   name:"Meta Litecoin",  pair:"0xd4faf6a3B43105395C1f3db6525eA0fBF5B3aF9a" },
@@ -47,27 +49,28 @@ const DEX_PAIRS = [
   { symbol:"mCRO",   name:"Meta Cronos",    pair:"0x7D9e8050Ba0c0a6c8336A49a5Af6748AA6BD855C" },
 ];
 
-// ─── ON-CHAIN RPC HELPER ──────────────────────────────────────────────────────
+// ─── ON-CHAIN RPC HELPER ────────────────────────────────────────────────────
+// FIX: foloseste AbortController in loc de AbortSignal.timeout (compatibil Node 16+)
 async function rpcFetch(method, params) {
   for (const rpc of MONAD_RPCS) {
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), 8000);
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 8000);
       const r = await fetch(rpc, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
-        signal: controller.signal,
+        signal: ctrl.signal,
       });
       clearTimeout(timeout);
       const d = await r.json();
       if (d.result !== undefined) return d.result;
-    } catch (_) {}
+    } catch (_) { clearTimeout(timeout); }
   }
   return null;
 }
 
-// ─── RMAD ON-CHAIN PRICE ──────────────────────────────────────────────────────
+// ─── RMAD ON-CHAIN PRICE ────────────────────────────────────────────────────
 let rmadToken0Cache = null;
 
 async function fetchToken0(pairAddr) {
@@ -96,7 +99,7 @@ async function fetchOnChainPrice() {
   }
 }
 
-// ─── ON-CHAIN PRICE FOR ANY EUROSPACE PAIR ────────────────────────────────────
+// ─── ON-CHAIN PRICE FOR ANY EUROSPACE PAIR ──────────────────────────────────
 async function fetchPairOnChainPrice(pairAddr) {
   try {
     const t0res  = await rpcFetch("eth_call", [{ to: pairAddr, data: "0x0dfe1681" }, "latest"]);
@@ -113,7 +116,8 @@ async function fetchPairOnChainPrice(pairAddr) {
   } catch (_) { return null; }
 }
 
-// ─── DEXSCREENER BATCH FETCH ──────────────────────────────────────────────────
+// ─── DEXSCREENER BATCH FETCH ────────────────────────────────────────────────
+// FIX: inlocuit AbortSignal.timeout cu AbortController — compatibil Node 16+
 async function fetchDexScreenerPairs(pairAddresses) {
   try {
     const CHUNK = 30;
@@ -121,25 +125,30 @@ async function fetchDexScreenerPairs(pairAddresses) {
     for (let i = 0; i < pairAddresses.length; i += CHUNK) {
       const chunk = pairAddresses.slice(i, i + CHUNK);
       const url   = `${DS_API}/${chunk.join(",")}`;
-      const r = await fetch(url, {
-        headers: { Accept: "application/json" },
-        signal: AbortSignal.timeout(10000),
-      });
-      if (!r.ok) continue;
-      const d = await r.json();
-      if (!Array.isArray(d.pairs)) continue;
-      for (const p of d.pairs) {
-        const addr = p.pairAddress?.toLowerCase();
-        if (!addr) continue;
-        results[addr] = {
-          priceNative : parseFloat(p.priceNative) || 0,
-          priceUsd    : parseFloat(p.priceUsd)    || 0,
-          change24h   : p.priceChange?.h24  ?? null,
-          change1h    : p.priceChange?.h1   ?? null,
-          volume24h   : p.volume?.h24       ?? 0,
-          liquidity   : p.liquidity?.usd    ?? 0,
-        };
-      }
+      const ctrl  = new AbortController();
+      const t     = setTimeout(() => ctrl.abort(), 10000);
+      try {
+        const r = await fetch(url, {
+          headers: { Accept: "application/json" },
+          signal: ctrl.signal,
+        });
+        clearTimeout(t);
+        if (!r.ok) continue;
+        const d = await r.json();
+        if (!Array.isArray(d.pairs)) continue;
+        for (const p of d.pairs) {
+          const addr = p.pairAddress?.toLowerCase();
+          if (!addr) continue;
+          results[addr] = {
+            priceNative : parseFloat(p.priceNative) || 0,
+            priceUsd    : parseFloat(p.priceUsd)    || 0,
+            change24h   : p.priceChange?.h24  ?? null,
+            change1h    : p.priceChange?.h1   ?? null,
+            volume24h   : p.volume?.h24       ?? 0,
+            liquidity   : p.liquidity?.usd    ?? 0,
+          };
+        }
+      } catch (_) { clearTimeout(t); }
     }
     return results;
   } catch (e) {
@@ -148,7 +157,7 @@ async function fetchDexScreenerPairs(pairAddresses) {
   }
 }
 
-// ─── FORMATTERS ───────────────────────────────────────────────────────────────
+// ─── FORMATTERS ─────────────────────────────────────────────────────────────
 function fmtNative(n) {
   if (!n || n === 0) return "—";
   if (n < 0.000001) return n.toExponential(4);
@@ -175,7 +184,7 @@ function chgArrow(v) {
   return (n >= 0 ? "▲" : "▼") + Math.abs(n).toFixed(2) + "%";
 }
 
-// ─── NFT DATA ─────────────────────────────────────────────────────────────────
+// ─── NFT DATA ───────────────────────────────────────────────────────────────
 const NFTS = [
   { id:1,  name:"Dark Flame Knight I",   rarity:"Legendary", power:95, speed:88, boost:92,
     image:"https://res.cloudinary.com/drmsykh02/image/upload/v1776867743/rocketmoonad/nfts/dark_flame_knight_i.jpg" },
@@ -242,7 +251,7 @@ function nftKeyboard(nft) {
   };
 }
 
-// ─── MENUS ────────────────────────────────────────────────────────────────────
+// ─── MENUS ──────────────────────────────────────────────────────────────────
 const MAIN_MENU_TEXT = `
 🚀 *RocketMoonad* — Moon Rockets Season 1
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -252,20 +261,11 @@ const MAIN_MENU_TEXT = `
 🎮 11 unique NFT characters with stats
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📦 NFT Contract:
-\`${NFT_ADDR}\`
-
-💎 RMAD Token:
-\`${RMAD_ADDR}\`
-
-🔒 Staking Contract:
-\`${STAKING_ADDR}\`
-
-🔮 Oracle (PriceFeed):
-\`${ORACLE_ADDR}\`
-
-🎰 Raffle Contract:
-\`${RAFFLE_ADDR}\`
+📦 NFT Contract: \`${NFT_ADDR}\`
+💎 RMAD Token: \`${RMAD_ADDR}\`
+🔒 Staking Contract: \`${STAKING_ADDR}\`
+🔮 Oracle (PriceFeed): \`${ORACLE_ADDR}\`
+🎰 Raffle Contract: \`${RAFFLE_ADDR}\`
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 `;
 
@@ -278,16 +278,17 @@ const MAIN_MENU_KEYBOARD = {
   ],
 };
 
-// ─── SEND PRICE MESSAGE ───────────────────────────────────────────────────────
+// ─── SEND PRICE MESSAGE ─────────────────────────────────────────────────────
+// FIX: foloseste Markdown simplu (nu V2) — evita erori de escape cu timestamp
 async function sendPriceMessage(chatId) {
   const loadingMsg = await bot.sendMessage(chatId, "⏳ Fetching live on-chain price...");
   const price = await fetchOnChainPrice();
   await bot.deleteMessage(chatId, loadingMsg.message_id).catch(() => {});
-  const now  = new Date().toUTCString();
+  const now = new Date().toISOString().replace("T", " ").slice(0, 19) + " UTC";
   const text = price !== null
     ? `💰 *RMAD Live Price*
 ━━━━━━━━━━━━━━━━━━━━
-🔗 Source: On\\-Chain \\(Monad Mainnet\\)
+🔗 Source: On-Chain (Monad Mainnet)
 💱 Pair: \`RMAD / WMON\`
 💵 Price: \`${price.toFixed(12)} WMON\`
 ━━━━━━━━━━━━━━━━━━━━
@@ -300,11 +301,10 @@ async function sendPriceMessage(chatId) {
 🕐 _Updated: ${now}_`
     : `❌ *Price Unavailable*
 ━━━━━━━━━━━━━━━━━━━━
-Could not fetch on\\-chain price\\.
-RPC may be temporarily unavailable\\.`;
+Could not fetch on-chain price. RPC may be temporarily unavailable.`;
 
   await bot.sendMessage(chatId, text, {
-    parse_mode: "MarkdownV2",
+    parse_mode: "Markdown",
     reply_markup: {
       inline_keyboard: [
         [{ text:"🔄 Refresh Price", callback_data:"price_check" }, { text:"📈 DexScreener Chart", url:DEX_URL }],
@@ -316,7 +316,7 @@ RPC may be temporarily unavailable\\.`;
   });
 }
 
-// ─── SEND DEX MESSAGE ─────────────────────────────────────────────────────────
+// ─── SEND DEX MESSAGE ───────────────────────────────────────────────────────
 async function sendDexMessage(chatId, filter = "all") {
   const loadingMsg = await bot.sendMessage(chatId, "⏳ Fetching DEX prices...");
 
@@ -394,7 +394,7 @@ async function sendDexMessage(chatId, filter = "all") {
   });
 }
 
-// ─── COMMANDS ─────────────────────────────────────────────────────────────────
+// ─── COMMANDS ───────────────────────────────────────────────────────────────
 bot.onText(/\/start/, (msg) =>
   bot.sendMessage(msg.chat.id, MAIN_MENU_TEXT, { parse_mode:"Markdown", reply_markup:MAIN_MENU_KEYBOARD })
 );
@@ -502,7 +502,7 @@ bot.onText(/\/help/, (msg) => bot.sendMessage(msg.chat.id,
   { parse_mode:"Markdown" }
 ));
 
-// ─── CALLBACK QUERIES ─────────────────────────────────────────────────────────
+// ─── CALLBACK QUERIES ───────────────────────────────────────────────────────
 bot.on("callback_query", async (query) => {
   const data   = query.data;
   const chatId = query.message.chat.id;
@@ -543,6 +543,7 @@ bot.on("callback_query", async (query) => {
 🔒 Staking: \`${STAKING_ADDR}\`
 🔮 Oracle: \`${ORACLE_ADDR}\`
 🎰 Raffle: \`${RAFFLE_ADDR}\`
+💱 LP Pair: \`${RMAD_PAIR}\`
 ━━━━━━━━━━━━━━━━━━━━`,
       { parse_mode:"Markdown", reply_markup:{ inline_keyboard:[
         [{ text:"📈 Trade", url:DEX_URL }, { text:"📊 MonadVision", url:MONAD_URL }],
