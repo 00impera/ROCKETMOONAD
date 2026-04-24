@@ -18,12 +18,11 @@ import DailyClaimPanel from "./components/DailyClaimPanel";
 import RafflePanel     from "./components/RafflePanel";
 
 // ─── CONTRACTS ──────────────────────────────────────────────────────────────
-const NFT_ADDR     = "0x45336C2E15F2fe58c67Ee4035a520231b2751669";
-const STAKING_ADDR = "0xec5773F31CA0F4012624392243E0B6517B518976";
-const RMAD_ADDR    = "0x9a440Afaa434cDd19234e58798DeFA0E71be0A67";
-const ORACLE_ADDR  = "0xEf98C35c95206527Bf2783fEf8f69Cfc12a3c2e1";
-const RAFFLE_ADDR  = "0xbcc94553Cb4facD17f209FDda4a54012Be616Cfc";
-// FIX: adresa corecta a pool-ului V2 functional cu lichiditate
+const NFT_ADDR     = "0x79C0bC7CF4B9F30F8614e66236eF634DB50f668f";  // NEW
+const STAKING_ADDR = "0x2F0317d1166fF385F44FACBd92BD4E43b03D2CbE";  // NEW
+const RMAD_ADDR    = "0x9a440Afaa434cDd19234e58798DeFA0E71be0A67";  // unchanged
+const ORACLE_ADDR  = "0xEf98C35c95206527Bf2783fEf8f69Cfc12a3c2e1"; // unchanged
+const RAFFLE_ADDR  = "0x00508e9F485021d20d8b2eDa6E6415f9Bf7300ee";  // NEW
 const RMAD_PAIR    = "0xb5CB9F4ECCBeae6F95C9222Aa12C319fF362a5a3";
 const WMON_ADDR    = "0x2cE8C8F4961a54B2e87585f4178467006B76B418";
 
@@ -32,8 +31,67 @@ const DEX_URL   = `https://dexscreener.com/monad/${RMAD_PAIR}`;
 const MONAD_URL = `https://monadvision.com/token/${RMAD_ADDR}?tab=Holders`;
 const MONAD_RPCS = ["https://rpc.monad.xyz", "https://monad.drpc.org"];
 
+// ─── NFT COLLECTION (7 rockets minted at block 70276151) ──────────────────
+const ROCKET_NFTS = [
+  {
+    id: 0,
+    name: "RocketMoonad #1",
+    rarity: "Legendary",
+    power: 95, speed: 90, boost: 92,
+    image: "https://res.cloudinary.com/drmsykh02/image/upload/v1777057320/rocketmoonad/afomr3mzeyu1s2ydjfpn.jpg",
+    metadata: "https://res.cloudinary.com/drmsykh02/raw/upload/v1777057830/rocketmoonad/metadata/qzhcti7accat6tv8yu3k.json",
+  },
+  {
+    id: 1,
+    name: "RocketMoonad #2",
+    rarity: "Epic",
+    power: 87, speed: 82, boost: 80,
+    image: "https://res.cloudinary.com/drmsykh02/image/upload/v1777057326/rocketmoonad/o2tn8s6s1mnq1c3ym0ci.jpg",
+    metadata: "https://res.cloudinary.com/drmsykh02/raw/upload/v1777057835/rocketmoonad/metadata/gay5cfxorwckrkkleexw.json",
+  },
+  {
+    id: 2,
+    name: "RocketMoonad #3",
+    rarity: "Epic",
+    power: 83, speed: 78, boost: 77,
+    image: "https://res.cloudinary.com/drmsykh02/image/upload/v1777057329/rocketmoonad/lazmddwnnu3urha31r4y.jpg",
+    metadata: "https://res.cloudinary.com/drmsykh02/raw/upload/v1777057839/rocketmoonad/metadata/qf3nxcojxnf4yz0jje6q.json",
+  },
+  {
+    id: 3,
+    name: "RocketMoonad #4",
+    rarity: "Rare",
+    power: 72, speed: 68, boost: 70,
+    image: "https://res.cloudinary.com/drmsykh02/image/upload/v1777057337/rocketmoonad/hocbys9ebhxu4npr0yqq.jpg",
+    metadata: "https://res.cloudinary.com/drmsykh02/raw/upload/v1777057843/rocketmoonad/metadata/sicn0a0h38magrtsr3bd.json",
+  },
+  {
+    id: 4,
+    name: "RocketMoonad #5",
+    rarity: "Rare",
+    power: 68, speed: 74, boost: 66,
+    image: "https://res.cloudinary.com/drmsykh02/image/upload/v1777057341/rocketmoonad/ei6mqxspfepkktds0tdk.jpg",
+    metadata: "https://res.cloudinary.com/drmsykh02/raw/upload/v1777057845/rocketmoonad/metadata/t6frxxq1hzxcu7dozcn9.json",
+  },
+  {
+    id: 5,
+    name: "RocketMoonad #6",
+    rarity: "Uncommon",
+    power: 60, speed: 65, boost: 58,
+    image: "https://res.cloudinary.com/drmsykh02/image/upload/v1777057343/rocketmoonad/dr0lwprrotv0znjfkfof.jpg",
+    metadata: "https://res.cloudinary.com/drmsykh02/raw/upload/v1777057849/rocketmoonad/metadata/eics5dz9z4z58a5wa10x.json",
+  },
+  {
+    id: 6,
+    name: "RocketMoonad #7",
+    rarity: "Uncommon",
+    power: 55, speed: 62, boost: 54,
+    image: "https://res.cloudinary.com/drmsykh02/image/upload/v1777057345/rocketmoonad/nzsd9blcfu8lke9j3xpa.jpg",
+    metadata: "https://res.cloudinary.com/drmsykh02/raw/upload/v1777057851/rocketmoonad/metadata/qz6k0ckluxo4ayrkoxpn.json",
+  },
+];
+
 // ─── EUROSPACE DEX PAIRS ───────────────────────────────────────────────────
-// FIX: mUSDT pair corect — 42 chars (fara 'b8' extra la final)
 const DEX_PAIRS = [
   { symbol:"EURO",   name:"Meta EuroCoin",  color:"#00ff88", img:"https://files.catbox.moe/9o0wad.png", pair:"0x9E32FdD909a5BdcCfb874DEE72F24169AfE4eC02" },
   { symbol:"mBTC",   name:"Meta Bitcoin",   color:"#F7931A", img:"", pair:"0x47Dc73D3e1C520056AdF52349A6A282e5262D56d" },
@@ -101,7 +159,6 @@ function calcRmadPrice(r0, r1, token0Addr) {
   return Number((r0 * 1_000_000_000_000n) / r1) / 1_000_000_000_000;
 }
 
-// Fetch price for any EUROSPACE pair — reads token0 to determine reserve order
 async function fetchPairOnChainPrice(pairAddr) {
   try {
     const t0res  = await rpcFetch("eth_call", [{ to: pairAddr, data: "0x0dfe1681" }, "latest"]);
@@ -167,7 +224,7 @@ function AdBanner() {
   );
 }
 
-// ─── LIVE RMAD PRICE HOOK (on-chain) ───────────────────────────────────────
+// ─── LIVE RMAD PRICE HOOK ──────────────────────────────────────────────────
 function useLiveDexPrice() {
   const [dexPrice,   setDexPrice]   = useState(null);
   const [dexChange,  setDexChange]  = useState(null);
@@ -190,7 +247,7 @@ function useLiveDexPrice() {
   return { dexPrice, dexChange, dexLoading };
 }
 
-// ─── DEX PAIRS PRICES HOOK (ON-CHAIN) ─────────────────────────────────────
+// ─── DEX PAIRS PRICES HOOK ────────────────────────────────────────────────
 function useDexPrices() {
   const [prices,  setPrices]  = useState({});
   const [loading, setLoading] = useState(true);
@@ -220,7 +277,7 @@ function useDexPrices() {
   return { prices, loading };
 }
 
-// ─── FORMATTERS ────────────────────────────────────────────────────────────
+// ─── FORMATTERS ───────────────────────────────────────────────────────────
 function fmtNative(n) {
   if (!n || n === 0) return "—";
   if (n < 0.000001)  return n.toExponential(4);
@@ -242,6 +299,16 @@ function fmtVolLiq(v) {
   return "$" + v.toFixed(0);
 }
 
+// ─── RARITY COLORS ────────────────────────────────────────────────────────
+const RARITY_COLOR = {
+  Legendary: "#FFD700",
+  Epic:      "#9945FF",
+  Rare:      "#00c8ff",
+  Uncommon:  "#00FF88",
+  Common:    "#888",
+};
+const RARITY_EMOJI = { Legendary:"🔥", Epic:"💜", Rare:"💙", Uncommon:"💚", Common:"⚪" };
+
 // ─── DASHBOARD ─────────────────────────────────────────────────────────────
 function Dashboard() {
   const account = useActiveAccount();
@@ -251,12 +318,12 @@ function Dashboard() {
   const { prices: dexPrices, loading: dexPairsLoading } = useDexPrices();
   const { stakedIds, pending, stake, unstake, claimRewards } = useStaking(account, sendTx);
 
-  const [filter,       setFilter]      = useState("all");
-  const [tab,          setTab]         = useState("staking");
-  const [dexFilter,    setDexFilter]   = useState("all");
-  const [selectedPair, setSelectedPair] = useState(null);
+  const [filter,        setFilter]       = useState("all");
+  const [tab,           setTab]          = useState("staking");
+  const [dexFilter,     setDexFilter]    = useState("all");
+  const [selectedPair,  setSelectedPair] = useState(null);
 
-  const nftsWithState = NFTS.map(n => ({ ...n, staked: stakedIds.includes(n.id.toString()) }));
+  const nftsWithState = ROCKET_NFTS.map(n => ({ ...n, staked: stakedIds.includes(n.id.toString()) }));
   const filtered =
     filter === "staked"   ? nftsWithState.filter(n =>  n.staked)
     : filter === "unstaked" ? nftsWithState.filter(n => !n.staked)
@@ -286,6 +353,8 @@ function Dashboard() {
         .flt-btn.active { border-color:#836ef9; color:#836ef9; background:rgba(131,110,249,.1); }
         .chg-up   { color:#00FF88; font-size:9px; font-family:monospace; }
         .chg-down { color:#ff4444; font-size:9px; font-family:monospace; }
+        .nft-card { background:var(--bg-panel); border-radius:14px; overflow:hidden; border:0.5px solid #1a1a2a; transition:transform .2s,box-shadow .2s; cursor:pointer; }
+        .nft-card:hover { transform:translateY(-3px); box-shadow:0 8px 32px rgba(0,255,136,.08); }
       `}</style>
 
       <AdBanner />
@@ -299,7 +368,7 @@ function Dashboard() {
               Rocket<span style={{ color:"var(--green)" }}>Moonad</span>
             </div>
             <div style={{ fontSize:"10px", color:"#444", letterSpacing:"2px", textTransform:"uppercase", marginTop:"2px" }}>
-              Moon Rockets Season 1 · Monad Mainnet
+              Moon Rockets Season 1 · Monad Mainnet · 7 NFTs
             </div>
           </div>
           <WalletPanel />
@@ -314,10 +383,16 @@ function Dashboard() {
             { label:"Oracle",        addr: ORACLE_ADDR  },
             { label:"Raffle",        addr: RAFFLE_ADDR  },
           ].map(({ label, addr }) => (
-            <div key={addr} style={{ background:"var(--bg-panel)", border:"0.5px solid var(--border-subtle)", borderRadius:"8px", padding:"6px 10px" }}>
+            <a
+              key={addr}
+              href={`https://monadscan.com/address/${addr}`}
+              target="_blank"
+              rel="noreferrer"
+              style={{ textDecoration:"none", background:"var(--bg-panel)", border:"0.5px solid var(--border-subtle)", borderRadius:"8px", padding:"6px 10px", display:"block" }}
+            >
               <div style={{ fontSize:"9px", color:"#444", textTransform:"uppercase", letterSpacing:"1px", marginBottom:"2px" }}>{label}</div>
               <div style={{ fontSize:"10px", color:"#666", fontFamily:"var(--font-mono)" }}>{addr.slice(0,6)}…{addr.slice(-4)}</div>
-            </div>
+            </a>
           ))}
         </div>
 
@@ -375,12 +450,13 @@ function Dashboard() {
           )}
           {account && (
             <>
+              {/* STATS */}
               <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"10px", marginBottom:"14px" }}>
                 {[
-                  { label:"Total NFTs",      value:NFTS.length },
+                  { label:"Total NFTs",      value:ROCKET_NFTS.length },
                   { label:"Staked",          value:stakedIds.length,               green:true },
                   { label:"Pending Rewards", value:`${pending} RMAD`,              green:true },
-                  { label:"Unstaked",        value:NFTS.length - stakedIds.length },
+                  { label:"Unstaked",        value:ROCKET_NFTS.length - stakedIds.length },
                 ].map(({ label, value, green }) => (
                   <div key={label} style={{ background:"var(--bg-panel)", borderRadius:"10px", padding:"14px" }}>
                     <div style={{ fontSize:"11px", color:"#444", marginBottom:"6px" }}>{label}</div>
@@ -392,6 +468,7 @@ function Dashboard() {
               <DailyClaimPanel account={account} sendTx={sendTx} />
               <RafflePanel account={account} sendTx={sendTx} />
 
+              {/* CLAIM REWARDS */}
               <div style={{ marginBottom:"16px" }}>
                 <div style={{ background:"var(--bg-panel)", border:"0.5px solid var(--green-dim)", borderRadius:"12px", padding:"16px" }}>
                   <div style={{ fontSize:"13px", fontWeight:"600", color:"var(--text-primary)", marginBottom:"10px" }}>Claim staking rewards</div>
@@ -405,9 +482,12 @@ function Dashboard() {
                 </div>
               </div>
 
+              {/* NFT GRID */}
               <div style={{ background:"var(--bg-panel)", border:"0.5px solid var(--border-subtle)", borderRadius:"14px", padding:"18px" }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"16px", flexWrap:"wrap", gap:"10px" }}>
-                  <span style={{ fontSize:"15px", fontWeight:"700", color:"var(--text-primary)" }}>Your NFTs ({filtered.length})</span>
+                  <span style={{ fontSize:"15px", fontWeight:"700", color:"var(--text-primary)" }}>
+                    Moon Rockets ({filtered.length})
+                  </span>
                   <div style={{ display:"flex", gap:"8px", alignItems:"center", flexWrap:"wrap" }}>
                     {["all","staked","unstaked"].map(f => (
                       <button key={f} onClick={() => setFilter(f)} style={{
@@ -423,19 +503,67 @@ function Dashboard() {
                     <NeonButton small gray onClick={() => nftsWithState.filter(n => n.staked).forEach(n => unstake(n.id))} disabled={isPending}>Unstake all</NeonButton>
                   </div>
                 </div>
-                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))", gap:"14px" }}>
+
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))", gap:"14px" }}>
                   <AnimatePresence>
                     {filtered.map(n => (
-                      <NftCard
+                      <motion.div
                         key={n.id}
-                        nft={n}
-                        staked={n.staked}
-                        price={dexPrice ? dexPrice.toFixed(10) + " WMON" : price}
-                        change={dexChange ?? change}
-                        priceLoading={dexLoading}
-                        onToggle={toggleNft}
-                        isPending={isPending}
-                      />
+                        className="nft-card"
+                        initial={{ opacity:0, scale:0.95 }}
+                        animate={{ opacity:1, scale:1 }}
+                        exit={{ opacity:0, scale:0.95 }}
+                        style={{ border:`0.5px solid ${n.staked ? "#00FF8844" : "#1a1a2a"}` }}
+                      >
+                        {/* Image */}
+                        <div style={{ position:"relative", aspectRatio:"1", overflow:"hidden" }}>
+                          <img
+                            src={n.image}
+                            alt={n.name}
+                            style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }}
+                          />
+                          {n.staked && (
+                            <div style={{ position:"absolute", top:8, right:8, background:"#00FF8822", border:"0.5px solid #00FF88", borderRadius:"6px", padding:"2px 7px", fontSize:"9px", color:"#00FF88", fontWeight:700, backdropFilter:"blur(4px)" }}>
+                              STAKED
+                            </div>
+                          )}
+                          <div style={{ position:"absolute", top:8, left:8, background:"rgba(0,0,0,0.7)", borderRadius:"6px", padding:"2px 7px", fontSize:"9px", fontWeight:700, color: RARITY_COLOR[n.rarity] || "#888", backdropFilter:"blur(4px)" }}>
+                            {RARITY_EMOJI[n.rarity]} {n.rarity}
+                          </div>
+                        </div>
+
+                        {/* Info */}
+                        <div style={{ padding:"10px 12px" }}>
+                          <div style={{ fontSize:"12px", fontWeight:"700", color:"var(--text-primary)", marginBottom:"6px" }}>{n.name}</div>
+
+                          {/* Stats bars */}
+                          {[["PWR", n.power], ["SPD", n.speed], ["BST", n.boost]].map(([label, val]) => (
+                            <div key={label} style={{ display:"flex", alignItems:"center", gap:"6px", marginBottom:"3px" }}>
+                              <span style={{ fontSize:"9px", color:"#444", width:"24px", fontFamily:"monospace" }}>{label}</span>
+                              <div style={{ flex:1, height:"3px", background:"#111", borderRadius:"2px", overflow:"hidden" }}>
+                                <div style={{ width:`${val}%`, height:"100%", background:`linear-gradient(90deg, #00FF88, #00c8ff)`, borderRadius:"2px" }} />
+                              </div>
+                              <span style={{ fontSize:"9px", color:"#555", fontFamily:"monospace", width:"20px", textAlign:"right" }}>{val}</span>
+                            </div>
+                          ))}
+
+                          {/* Stake / Unstake button */}
+                          <button
+                            onClick={() => toggleNft(n.id)}
+                            disabled={isPending}
+                            style={{
+                              width:"100%", marginTop:"10px", padding:"7px",
+                              borderRadius:"8px", border:"none", cursor:"pointer",
+                              background: n.staked ? "rgba(255,68,68,0.12)" : "rgba(0,255,136,0.12)",
+                              color: n.staked ? "#ff4444" : "#00FF88",
+                              fontSize:"11px", fontWeight:"700", fontFamily:"inherit",
+                              transition:"all .2s",
+                            }}
+                          >
+                            {isPending ? "…" : n.staked ? "− Unstake" : "+ Stake"}
+                          </button>
+                        </div>
+                      </motion.div>
                     ))}
                   </AnimatePresence>
                 </div>
