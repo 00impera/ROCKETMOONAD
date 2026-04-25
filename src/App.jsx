@@ -235,7 +235,7 @@ function V4SwapPanel({account}) {
         >
           ⚡ Swap via V4
         </button>
-        
+        <a
           href={`https://monadvision.com/token/${tokenIn.contract}`}
           target="_blank" rel="noreferrer"
           style={{padding:"10px",borderRadius:8,border:"0.5px solid #836ef944",background:"#836ef911",color:"#836ef9",fontSize:11,fontWeight:700,textDecoration:"none",textAlign:"center",display:"flex",alignItems:"center",justifyContent:"center"}}
@@ -274,7 +274,7 @@ function V4PoolGrid() {
       <div style={{fontSize:10,color:"#555",marginBottom:14}}>All paired against WMOON · Your Uniswap V4 deployment</div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}}>
         {V4_PAIRS.map(p=>(
-          
+          <a
             key={p.symbol}
             href={`https://monadvision.com/token/${p.contract}`}
             target="_blank" rel="noreferrer"
