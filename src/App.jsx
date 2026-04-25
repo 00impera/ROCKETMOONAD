@@ -15,15 +15,16 @@ import NeonButton      from "./components/NeonButton";
 import DailyClaimPanel from "./components/DailyClaimPanel";
 import RafflePanel     from "./components/RafflePanel";
 
-const NFT_ADDR     = "0x79C0bC7CF4B9F30F8614e66236eF634DB50f668f";
-const STAKING_ADDR = "0x2F0317d1166fF385F44FACBd92BD4E43b03D2CbE";
+// ── Core contracts ────────────────────────────────────────────────────────────
+const NFT_ADDR     = "0x45336C2E15F2fe58c67Ee4035a520231b2751669";  // RMoonadNFT (new mints IDs 19-25)
+const STAKING_ADDR = "0xec5773F31CA0F4012624392243E0B6517B518976";  // Staking → points to this NFT
 const RMAD_ADDR    = "0x9a440Afaa434cDd19234e58798DeFA0E71be0A67";
 const ORACLE_ADDR  = "0xEf98C35c95206527Bf2783fEf8f69Cfc12a3c2e1";
 const RAFFLE_ADDR  = "0x00508e9F485021d20d8b2eDa6E6415f9Bf7300ee";
 const RMAD_PAIR    = "0xb5CB9F4ECCBeae6F95C9222Aa12C319fF362a5a3";
 const WMON_ADDR    = "0x2cE8C8F4961a54B2e87585f4178467006B76B418";
 
-// ── Uniswap V4 contracts (YOUR deployment) ──────────────────────────────────
+// ── Uniswap V4 contracts ─────────────────────────────────────────────────────
 const V4_POOL_MANAGER     = "0xb362A2b87695a71A65092bd500fB05B558180048";
 const V4_POSITION_MANAGER = "0xECAD0032774e3697565A0B9613182AC03319F2A1";
 const V4_PERMIT2          = "0x63b8378896B425A036E9FA09D2D437d957A96c5c";
@@ -34,7 +35,7 @@ const DEX_URL   = `https://dexscreener.com/monad/${RMAD_PAIR}`;
 const MONAD_URL = `https://monadvision.com/token/${RMAD_ADDR}?tab=Holders`;
 const MONAD_RPCS = ["https://rpc.monad.xyz", "https://monad.drpc.org"];
 
-// ── V4 Pools (YOUR 17 pools against WMOON) ──────────────────────────────────
+// ── V4 Pools ──────────────────────────────────────────────────────────────────
 const V4_PAIRS = [
   { symbol:"EURO",   name:"Meta EuroCoin",  color:"#00ff88", contract:"0x5548D8405F343a6075a46a45CB954bCeB8Ba4E79" },
   { symbol:"mBTC",   name:"Meta Bitcoin",   color:"#F7931A", contract:"0x5078A3531Dba3Dea11AB4aaF641DB6f0fE88579e" },
@@ -55,14 +56,15 @@ const V4_PAIRS = [
   { symbol:"mCRO",   name:"Meta Cronos",    color:"#60a5fa", contract:"0x0127B3c3C864cfC1BB519beB935477299b961d46" },
 ];
 
+// ── NFTs — IDs 19-25 (fresh mints with real metadata on 0x45336C2E) ──────────
 const ROCKET_NFTS = [
-  { id:0, name:"RocketMoonad #1", rarity:"Legendary", power:95, speed:90, boost:92, image:"https://res.cloudinary.com/drmsykh02/image/upload/v1777057320/rocketmoonad/afomr3mzeyu1s2ydjfpn.jpg" },
-  { id:1, name:"RocketMoonad #2", rarity:"Epic",      power:87, speed:82, boost:80, image:"https://res.cloudinary.com/drmsykh02/image/upload/v1777057326/rocketmoonad/o2tn8s6s1mnq1c3ym0ci.jpg" },
-  { id:2, name:"RocketMoonad #3", rarity:"Epic",      power:83, speed:78, boost:77, image:"https://res.cloudinary.com/drmsykh02/image/upload/v1777057329/rocketmoonad/lazmddwnnu3urha31r4y.jpg" },
-  { id:3, name:"RocketMoonad #4", rarity:"Rare",      power:72, speed:68, boost:70, image:"https://res.cloudinary.com/drmsykh02/image/upload/v1777057337/rocketmoonad/hocbys9ebhxu4npr0yqq.jpg" },
-  { id:4, name:"RocketMoonad #5", rarity:"Rare",      power:68, speed:74, boost:66, image:"https://res.cloudinary.com/drmsykh02/image/upload/v1777057341/rocketmoonad/ei6mqxspfepkktds0tdk.jpg" },
-  { id:5, name:"RocketMoonad #6", rarity:"Uncommon",  power:60, speed:65, boost:58, image:"https://res.cloudinary.com/drmsykh02/image/upload/v1777057343/rocketmoonad/dr0lwprrotv0znjfkfof.jpg" },
-  { id:6, name:"RocketMoonad #7", rarity:"Uncommon",  power:55, speed:62, boost:54, image:"https://res.cloudinary.com/drmsykh02/image/upload/v1777057345/rocketmoonad/nzsd9blcfu8lke9j3xpa.jpg" },
+  { id:19, name:"RocketMoonad #1", rarity:"Legendary", power:95, speed:90, boost:92, image:"https://res.cloudinary.com/drmsykh02/image/upload/v1777057320/rocketmoonad/afomr3mzeyu1s2ydjfpn.jpg" },
+  { id:20, name:"RocketMoonad #2", rarity:"Epic",      power:87, speed:82, boost:80, image:"https://res.cloudinary.com/drmsykh02/image/upload/v1777057326/rocketmoonad/o2tn8s6s1mnq1c3ym0ci.jpg" },
+  { id:21, name:"RocketMoonad #3", rarity:"Epic",      power:83, speed:78, boost:77, image:"https://res.cloudinary.com/drmsykh02/image/upload/v1777057329/rocketmoonad/lazmddwnnu3urha31r4y.jpg" },
+  { id:22, name:"RocketMoonad #4", rarity:"Rare",      power:72, speed:68, boost:70, image:"https://res.cloudinary.com/drmsykh02/image/upload/v1777057337/rocketmoonad/hocbys9ebhxu4npr0yqq.jpg" },
+  { id:23, name:"RocketMoonad #5", rarity:"Rare",      power:68, speed:74, boost:66, image:"https://res.cloudinary.com/drmsykh02/image/upload/v1777057341/rocketmoonad/ei6mqxspfepkktds0tdk.jpg" },
+  { id:24, name:"RocketMoonad #6", rarity:"Uncommon",  power:60, speed:65, boost:58, image:"https://res.cloudinary.com/drmsykh02/image/upload/v1777057343/rocketmoonad/dr0lwprrotv0znjfkfof.jpg" },
+  { id:25, name:"RocketMoonad #7", rarity:"Uncommon",  power:55, speed:62, boost:54, image:"https://res.cloudinary.com/drmsykh02/image/upload/v1777057345/rocketmoonad/nzsd9blcfu8lke9j3xpa.jpg" },
 ];
 
 const RMAD_AD_LINKS = [
@@ -174,7 +176,6 @@ function useLiveDexPrice() {
   return {dexPrice,dexChange,dexLoading};
 }
 
-// ── V4 Swap Panel ────────────────────────────────────────────────────────────
 function V4SwapPanel({account}) {
   const [tokenIn,  setTokenIn]  = useState(V4_PAIRS[0]);
   const [amountIn, setAmountIn] = useState("");
@@ -194,32 +195,18 @@ function V4SwapPanel({account}) {
 
   return (
     <div style={{background:"var(--bg-panel)",border:"0.5px solid #1a1a2a",borderRadius:14,padding:18,marginBottom:16}}>
-      <div style={{fontSize:13,fontWeight:700,color:"var(--text-primary)",marginBottom:4}}>
-        ⚡ Uniswap V4 Swap
-      </div>
-      <div style={{fontSize:10,color:"#555",marginBottom:14}}>
-        Your V4 deployment · PoolManager {V4_POOL_MANAGER.slice(0,10)}…
-      </div>
-
+      <div style={{fontSize:13,fontWeight:700,color:"var(--text-primary)",marginBottom:4}}>⚡ Uniswap V4 Swap</div>
+      <div style={{fontSize:10,color:"#555",marginBottom:14}}>Your V4 deployment · PoolManager {V4_POOL_MANAGER.slice(0,10)}…</div>
       <div style={{marginBottom:10}}>
         <div style={{fontSize:10,color:"#555",marginBottom:4}}>WMOON → Token</div>
-        <select
-          value={tokenIn.symbol}
-          onChange={e=>setTokenIn(V4_PAIRS.find(p=>p.symbol===e.target.value))}
-          style={{width:"100%",padding:"8px 10px",borderRadius:8,border:"0.5px solid #222",background:"#0a0a14",color:"#e0e0e0",fontSize:13,marginBottom:8}}
-        >
+        <select value={tokenIn.symbol} onChange={e=>setTokenIn(V4_PAIRS.find(p=>p.symbol===e.target.value))}
+          style={{width:"100%",padding:"8px 10px",borderRadius:8,border:"0.5px solid #222",background:"#0a0a14",color:"#e0e0e0",fontSize:13,marginBottom:8}}>
           {V4_PAIRS.map(p=><option key={p.symbol} value={p.symbol}>{p.symbol} — {p.name}</option>)}
         </select>
-        <input
-          type="number" placeholder="Amount WMOON"
-          value={amountIn} onChange={e=>setAmountIn(e.target.value)}
-          style={{width:"100%",padding:"8px 10px",borderRadius:8,border:"0.5px solid #222",background:"#0a0a14",color:"#e0e0e0",fontSize:14}}
-        />
-        <div style={{fontSize:10,color:"#444",marginTop:4}}>
-          Balance: {balIn} {tokenIn.symbol}
-        </div>
+        <input type="number" placeholder="Amount WMOON" value={amountIn} onChange={e=>setAmountIn(e.target.value)}
+          style={{width:"100%",padding:"8px 10px",borderRadius:8,border:"0.5px solid #222",background:"#0a0a14",color:"#e0e0e0",fontSize:14}}/>
+        <div style={{fontSize:10,color:"#444",marginTop:4}}>Balance: {balIn} {tokenIn.symbol}</div>
       </div>
-
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10,fontSize:10,color:"#555"}}>
         <div style={{background:"#0a0a14",borderRadius:8,padding:"8px 10px"}}>Pool fee: <span style={{color:"#836ef9"}}>0.3%</span></div>
         <div style={{background:"#0a0a14",borderRadius:8,padding:"8px 10px"}}>Tick spacing: <span style={{color:"#836ef9"}}>60</span></div>
@@ -227,59 +214,35 @@ function V4SwapPanel({account}) {
           Token: <span style={{color:tokenIn.color,fontFamily:"monospace",fontSize:9}}>{tokenIn.contract.slice(0,14)}…</span>
         </div>
       </div>
-
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
-        <button
-          onClick={doSwap}
-          style={{padding:"10px",borderRadius:8,border:`1px solid ${tokenIn.color}44`,background:`${tokenIn.color}11`,color:tokenIn.color,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}
-        >
+        <button onClick={doSwap}
+          style={{padding:"10px",borderRadius:8,border:`1px solid ${tokenIn.color}44`,background:`${tokenIn.color}11`,color:tokenIn.color,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
           ⚡ Swap via V4
         </button>
-        <a
-          href={`https://monadvision.com/token/${tokenIn.contract}`}
-          target="_blank" rel="noreferrer"
-          style={{padding:"10px",borderRadius:8,border:"0.5px solid #836ef944",background:"#836ef911",color:"#836ef9",fontSize:11,fontWeight:700,textDecoration:"none",textAlign:"center",display:"flex",alignItems:"center",justifyContent:"center"}}
-        >
+        <a href={`https://monadvision.com/token/${tokenIn.contract}`} target="_blank" rel="noreferrer"
+          style={{padding:"10px",borderRadius:8,border:"0.5px solid #836ef944",background:"#836ef911",color:"#836ef9",fontSize:11,fontWeight:700,textDecoration:"none",textAlign:"center",display:"flex",alignItems:"center",justifyContent:"center"}}>
           📊 MonadVision
         </a>
       </div>
-
-      <div style={{background:"#0a0a14",borderRadius:8,padding:"10px 12px",fontSize:10,color:"#555",lineHeight:1.8}}>
-        <div style={{color:"#836ef9",fontWeight:700,marginBottom:4}}>V4 Contracts:</div>
-        <div>PoolManager: <span style={{fontFamily:"monospace",color:"#666"}}>{V4_POOL_MANAGER.slice(0,14)}…</span></div>
-        <div>PositionMgr: <span style={{fontFamily:"monospace",color:"#666"}}>{V4_POSITION_MANAGER.slice(0,14)}…</span></div>
-        <div>Permit2: <span style={{fontFamily:"monospace",color:"#666"}}>{V4_PERMIT2.slice(0,14)}…</span></div>
-        <div>WMOON: <span style={{fontFamily:"monospace",color:"#666"}}>{WMOON.slice(0,14)}…</span></div>
-      </div>
-
-      {status && (
+      {status&&(
         <div style={{marginTop:10,padding:"10px 12px",borderRadius:8,background:"rgba(131,110,249,.1)",border:"0.5px solid #836ef944",fontSize:11,color:"#836ef9"}}>
           {status.msg}<br/>
-          <code style={{fontSize:10,color:"#00FF88",display:"block",marginTop:6}}>
-            node ~/uniswap-v4-monad/rmad-test/swap.js
-          </code>
+          <code style={{fontSize:10,color:"#00FF88",display:"block",marginTop:6}}>node ~/uniswap-v4-monad/rmad-test/swap.js</code>
         </div>
       )}
     </div>
   );
 }
 
-// ── V4 Pool Grid ─────────────────────────────────────────────────────────────
 function V4PoolGrid() {
   return (
     <div style={{background:"var(--bg-panel)",border:"0.5px solid #1a1a2a",borderRadius:14,padding:18,marginBottom:16}}>
-      <div style={{fontSize:13,fontWeight:700,color:"var(--text-primary)",marginBottom:4}}>
-        🏊 V4 Pools Live — 17 Pairs
-      </div>
+      <div style={{fontSize:13,fontWeight:700,color:"var(--text-primary)",marginBottom:4}}>🏊 V4 Pools Live — 17 Pairs</div>
       <div style={{fontSize:10,color:"#555",marginBottom:14}}>All paired against WMOON · Your Uniswap V4 deployment</div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}}>
         {V4_PAIRS.map(p=>(
-          <a
-            key={p.symbol}
-            href={`https://monadvision.com/token/${p.contract}`}
-            target="_blank" rel="noreferrer"
-            style={{textDecoration:"none",background:"#0a0a14",border:`0.5px solid ${p.color}33`,borderLeft:`3px solid ${p.color}`,borderRadius:10,padding:"10px 12px",display:"block",transition:"all .2s"}}
-          >
+          <a key={p.symbol} href={`https://monadvision.com/token/${p.contract}`} target="_blank" rel="noreferrer"
+            style={{textDecoration:"none",background:"#0a0a14",border:`0.5px solid ${p.color}33`,borderLeft:`3px solid ${p.color}`,borderRadius:10,padding:"10px 12px",display:"block"}}>
             <div style={{fontSize:12,fontWeight:700,color:p.color,marginBottom:2}}>{p.symbol}</div>
             <div style={{fontSize:9,color:"#444",marginBottom:6}}>{p.name}</div>
             <div style={{fontSize:8,color:"#333",fontFamily:"monospace"}}>{p.contract.slice(0,8)}…</div>
@@ -447,11 +410,15 @@ function Dashboard() {
                       initial={{opacity:0,scale:0.95}} animate={{opacity:1,scale:1}} exit={{opacity:0,scale:0.95}}
                       style={{border:`0.5px solid ${n.staked?"#00FF8844":"#1a1a2a"}`}}>
                       <div style={{position:"relative",aspectRatio:"1",overflow:"hidden"}}>
-                        <img src={n.image} alt={n.name} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
+                        <img src={n.image} alt={n.name} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}
+                          onError={e=>{e.target.style.display="none";e.target.nextSibling.style.display="flex";}}
+                        />
+                        <div style={{display:"none",width:"100%",height:"100%",alignItems:"center",justifyContent:"center",background:"#0a0a14",fontSize:40}}>🚀</div>
                         {n.staked&&<div style={{position:"absolute",top:8,right:8,background:"#00FF8822",border:"0.5px solid #00FF88",borderRadius:6,padding:"2px 7px",fontSize:9,color:"#00FF88",fontWeight:700}}>STAKED</div>}
                         <div style={{position:"absolute",top:8,left:8,background:"rgba(0,0,0,0.7)",borderRadius:6,padding:"2px 7px",fontSize:9,fontWeight:700,color:RARITY_COLOR[n.rarity]||"#888"}}>
                           {RARITY_EMOJI[n.rarity]} {n.rarity}
                         </div>
+                        <div style={{position:"absolute",bottom:6,right:8,background:"rgba(0,0,0,0.6)",borderRadius:4,padding:"1px 6px",fontSize:8,color:"#555",fontFamily:"monospace"}}>#{n.id}</div>
                       </div>
                       <div style={{padding:"10px 12px"}}>
                         <div style={{fontSize:12,fontWeight:700,color:"var(--text-primary)",marginBottom:6}}>{n.name}</div>
@@ -479,14 +446,12 @@ function Dashboard() {
           </>}
         </>}
 
-        {/* ── V4 SWAP TAB ── */}
         {tab==="v4swap"&&(
           account
             ? <V4SwapPanel account={account}/>
             : <div style={{textAlign:"center",padding:"60px 0",color:"#555",fontSize:14}}>Connect wallet to use V4 Swap</div>
         )}
 
-        {/* ── V4 POOLS TAB ── */}
         {tab==="v4pools"&&<V4PoolGrid/>}
       </div>
     </div>
