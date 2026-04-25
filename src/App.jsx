@@ -29,7 +29,7 @@ const V4_POSITION_MANAGER = "0xECAD0032774e3697565A0B9613182AC03319F2A1";
 const V4_PERMIT2          = "0x63b8378896B425A036E9FA09D2D437d957A96c5c";
 const WMOON               = "0x2ce8c8f4961a54b2e87585f4178467006b76b418";
 
-const DAPP_URL  = "https://6e82f368.rocketmoonad.pages.dev";
+const DAPP_URL  = "https://b7845c61.rocketmoonad.pages.dev";
 const DEX_URL   = `https://dexscreener.com/monad/${RMAD_PAIR}`;
 const MONAD_URL = `https://monadvision.com/token/${RMAD_ADDR}?tab=Holders`;
 const MONAD_RPCS = ["https://rpc.monad.xyz", "https://monad.drpc.org"];
