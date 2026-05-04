@@ -7,43 +7,46 @@ export const client = createThirdwebClient({
 
 export const monad = defineChain({
   id: 143,
-  name: "Monad Mainnet",
+  name: "Monad Testnet",
   nativeCurrency: { name: "MON", symbol: "MON", decimals: 18 },
-  rpc: "https://rpc.ankr.com/monad_mainnet",
-  blockExplorers: [{ name: "MonadVision", url: "https://monadvision.com" }],
+  rpc: "https://rpc.monad.xyz",
+  blockExplorers: [{ name: "MonadScan", url: "https://monadscan.com" }],
 });
 
-// NFT contract — RMoonadNFT (IDs 19-25 have real metadata with Cloudinary images)
+// ── Raw addresses (for hooks that use eth_call directly) ──────────────────────
+export const RMAD_ADDR    = "0x9a440Afaa434cDd19234e58798DeFA0E71be0A67";
+export const NFT_ADDR     = "0x45336C2E15F2fe58c67Ee4035a520231b2751669";
+export const STAKING_ADDR = "0xec5773F31CA0F4012624392243E0B6517B518976";
+export const RAFFLE_ADDR  = "0x00508e9F485021d20d8b2eDa6E6415f9Bf7300ee";
+export const ORACLE_ADDR  = "0xEf98C35c95206527Bf2783fEf8f69Cfc12a3c2e1";
+
+// ── Thirdweb contract objects (for sendTx / prepareContractCall) ──────────────
 export const nftContract = getContract({
   client,
   chain: monad,
-  address: "0x45336C2E15F2fe58c67Ee4035a520231b2751669",
+  address: NFT_ADDR,
 });
 
-// Staking contract — points to the NFT above
 export const stakingContract = getContract({
   client,
   chain: monad,
-  address: "0xec5773F31CA0F4012624392243E0B6517B518976",
+  address: STAKING_ADDR,
 });
 
-// RMAD token
 export const rmadContract = getContract({
   client,
   chain: monad,
-  address: "0x9a440Afaa434cDd19234e58798DeFA0E71be0A67",
+  address: RMAD_ADDR,
 });
 
-// Oracle
 export const oracleContract = getContract({
   client,
   chain: monad,
-  address: "0xEf98C35c95206527Bf2783fEf8f69Cfc12a3c2e1",
+  address: ORACLE_ADDR,
 });
 
-// Raffle
 export const raffleContract = getContract({
   client,
   chain: monad,
-  address: "0x00508e9F485021d20d8b2eDa6E6415f9Bf7300ee",
+  address: RAFFLE_ADDR,
 });
