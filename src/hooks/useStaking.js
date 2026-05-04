@@ -1,9 +1,13 @@
 import { useState, useCallback, useEffect } from "react";
-import { prepareContractCall } from "thirdweb";
 import { stakingContract, nftContract } from "../config";
 
+// ── RPC nodes ─────────────────────────────────────────────────────────────────
 const MONAD_RPCS = ["https://rpc.monad.xyz", "https://monad.drpc.org"];
 
+const STAKING_ADDR = stakingContract.address;
+const NFT_ADDR     = nftContract.address;
+
+// ── Low-level eth_call ────────────────────────────────────────────────────────
 async function rpcCall(to, data) {
   for (const rpc of MONAD_RPCS) {
     const ctrl = new AbortController();
@@ -12,7 +16,11 @@ async function rpcCall(to, data) {
       const r = await fetch(rpc, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_call", params: [{ to, data }, "latest"] }),
+        body: JSON.stringify({
+          jsonrpc: "2.0", id: 1,
+          method: "eth_call",
+          params: [{ to, data }, "latest"],
+        }),
         signal: ctrl.signal,
       });
       clearTimeout(t);
@@ -23,126 +31,112 @@ async function rpcCall(to, data) {
   return null;
 }
 
-// ABI-encode a single address param
-function encodeAddr(fnSig, addr) {
-  const selector = fnSig; // pass pre-computed selector
+// ── ABI encode helpers ────────────────────────────────────────────────────────
+function encodeAddr(selector, addr) {
   return selector + "000000000000000000000000" + addr.toLowerCase().replace("0x", "");
 }
 
-// Decode a uint256[] returned by stakedTokens(address)
-// ABI layout: offset (32) | length (32) | ...elements (32 each)
+function encodeUint256Array(selector, ids) {
+  const offset = "0000000000000000000000000000000000000000000000000000000000000020";
+  const len    = ids.length.toString(16).padStart(64, "0");
+  const els    = ids.map(id => BigInt(id).toString(16).padStart(64, "0")).join("");
+  return selector + offset + len + els;
+}
+
+function encodeUint256(selector, id) {
+  return selector + BigInt(id).toString(16).padStart(64, "0");
+}
+
+// ── Decode uint256[] return ───────────────────────────────────────────────────
 function decodeUint256Array(hex) {
   if (!hex || hex === "0x") return [];
-  const data = hex.replace("0x", "");
-  // slot 0 = offset to array data (always 0x20 = 32 for a single return)
-  const len = parseInt(data.slice(64, 128), 16);
+  const d = hex.replace("0x", "");
+  const len = parseInt(d.slice(64, 128), 16);
   if (!len || isNaN(len)) return [];
   const result = [];
   for (let i = 0; i < len; i++) {
-    const start = 128 + i * 64;
-    result.push(data.slice(start, start + 64));
+    const s = 128 + i * 64;
+    result.push(BigInt("0x" + d.slice(s, s + 64)).toString());
   }
-  return result.map(h => BigInt("0x" + h).toString());
+  return result;
 }
 
-// stakedTokens(address)  → 0xb46aba52 (keccak256 first 4 bytes)
-const SEL_STAKED_TOKENS  = "0xb46aba52";
-// pendingRewards(address) → 0xf40f0f52
-const SEL_PENDING_REWARDS = "0xf40f0f52";
-// isApprovedForAll(address,address) → 0xe985e9c5
-const SEL_IS_APPROVED    = "0xe985e9c5";
-
+// ── Hook ──────────────────────────────────────────────────────────────────────
 export function useStaking(account, sendTx) {
   const [stakedIds, setStakedIds] = useState([]);
   const [pending,   setPending]   = useState("0");
   const [loading,   setLoading]   = useState(false);
 
-  const stakingAddr = stakingContract.address;
-  const nftAddr     = nftContract.address;
-
+  // ── READ ──────────────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
     if (!account?.address) return;
     setLoading(true);
     try {
-      // ── stakedTokens(address) ─────────────────────────────────────────────
-      const idsHex = await rpcCall(
-        stakingAddr,
-        encodeAddr(SEL_STAKED_TOKENS, account.address)
-      );
+      // stakedTokens(address) → 0xb46aba52
+      const idsHex = await rpcCall(STAKING_ADDR, encodeAddr("0xb46aba52", account.address));
       setStakedIds(decodeUint256Array(idsHex));
 
-      // ── pendingRewards(address) ───────────────────────────────────────────
-      const rewHex = await rpcCall(
-        stakingAddr,
-        encodeAddr(SEL_PENDING_REWARDS, account.address)
-      );
+      // pendingRewards(address) → 0xf40f0f52
+      const rewHex = await rpcCall(STAKING_ADDR, encodeAddr("0xf40f0f52", account.address));
       const rewBig = rewHex ? BigInt(rewHex) : 0n;
       setPending((Number(rewBig) / 1e18).toFixed(4));
     } catch (e) {
-      console.warn("[useStaking] load error (non-fatal):", e.message);
+      console.warn("[useStaking] load error:", e.message);
     } finally {
       setLoading(false);
     }
-  }, [account, stakingAddr]);
+  }, [account]);
 
   useEffect(() => { load(); }, [load]);
 
-  // ── ensureApproval ──────────────────────────────────────────────────────────
+  // ── Raw sendTx helper — bypasses thirdweb ABI decoder entirely ───────────────
+  async function sendRaw(to, data) {
+    // thirdweb's useSendTransaction accepts a plain { to, data } object
+    return sendTx({ to, data });
+  }
+
+  // ── ensureApproval ────────────────────────────────────────────────────────────
   async function ensureApproval() {
-    // isApprovedForAll(owner, operator) — two address params
     const ownerHex    = account.address.toLowerCase().replace("0x", "").padStart(64, "0");
-    const operatorHex = stakingAddr.toLowerCase().replace("0x", "").padStart(64, "0");
-    const res = await rpcCall(nftAddr, SEL_IS_APPROVED + ownerHex + operatorHex);
+    const operatorHex = STAKING_ADDR.toLowerCase().replace("0x", "").padStart(64, "0");
+    // isApprovedForAll(address,address) → 0xe985e9c5
+    const res = await rpcCall(NFT_ADDR, "0xe985e9c5" + ownerHex + operatorHex);
     const approved = res && BigInt(res) === 1n;
     if (!approved) {
-      await sendTx(prepareContractCall({
-        contract: nftContract,
-        method: "function setApprovalForAll(address,bool)",
-        params: [stakingAddr, true],
-      }));
+      // setApprovalForAll(address,bool) → 0xa22cb465
+      const truePadded = "0000000000000000000000000000000000000000000000000000000000000001";
+      await sendRaw(NFT_ADDR, "0xa22cb465" + operatorHex + truePadded);
     }
   }
 
-  // ── stake ───────────────────────────────────────────────────────────────────
+  // ── stake(uint256[]) → 0x0fbf0a93 ────────────────────────────────────────────
   const stake = useCallback(async (ids) => {
     if (!account || !ids.length) return;
     try {
       await ensureApproval();
-      await sendTx(prepareContractCall({
-        contract: stakingContract,
-        method: "function stake(uint256[])",
-        params: [ids.map(BigInt)],
-      }));
+      await sendRaw(STAKING_ADDR, encodeUint256Array("0x0fbf0a93", ids));
       setTimeout(load, 2500);
     } catch (e) {
       console.error("[stake] error:", e.message);
     }
   }, [sendTx, load, account]);
 
-  // ── unstake ─────────────────────────────────────────────────────────────────
+  // ── unstake(uint256) → 0x2e17de78 ────────────────────────────────────────────
   const unstake = useCallback(async (id) => {
     if (!account) return;
     try {
-      await sendTx(prepareContractCall({
-        contract: stakingContract,
-        method: "function unstake(uint256)",
-        params: [BigInt(id)],
-      }));
+      await sendRaw(STAKING_ADDR, encodeUint256("0x2e17de78", id));
       setTimeout(load, 2500);
     } catch (e) {
       console.error("[unstake] error:", e.message);
     }
   }, [sendTx, load, account]);
 
-  // ── claimRewards ────────────────────────────────────────────────────────────
+  // ── claimRewards() → 0x372500ab ──────────────────────────────────────────────
   const claimRewards = useCallback(async () => {
     if (!account) return;
     try {
-      await sendTx(prepareContractCall({
-        contract: stakingContract,
-        method: "function claimRewards()",
-        params: [],
-      }));
+      await sendRaw(STAKING_ADDR, "0x372500ab");
       setTimeout(load, 2500);
     } catch (e) {
       console.error("[claimRewards] error:", e.message);
