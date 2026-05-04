@@ -2,7 +2,7 @@ import { createThirdwebClient, getContract } from "thirdweb";
 import { defineChain } from "thirdweb/chains";
 
 export const client = createThirdwebClient({
-  clientId: "your-client-id",
+  clientId: "39d5688409d060364e2d612723c14984",
 });
 
 export const monad = defineChain({
